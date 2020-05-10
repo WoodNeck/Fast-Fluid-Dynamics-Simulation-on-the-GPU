@@ -7,7 +7,7 @@ import { Updateable } from "~/types/common";
 // Layer that contains scene & camera
 export default abstract class Layer implements Updateable {
 	public abstract get scene(): Readonly<THREE.Scene>;
-	public abstract get camera(): Readonly<THREE.OrthographicCamera>;
+	public abstract get camera(): Readonly<THREE.Camera>;
 
 	protected entityMananger: EntityManager;
 
