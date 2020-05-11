@@ -18,6 +18,7 @@
   },
   "homepage": "https://github.com/WoodNeck/three-ts-template#readme",
   "dependencies": {
+    "@egjs/component": "^2.1.2",
     "three": "^0.116.1"
   },
   "devDependencies": {

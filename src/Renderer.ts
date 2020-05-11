@@ -1,13 +1,12 @@
 import * as THREE from "three";
 import Pass from "./passes/Pass";
 
+import * as EVENTS from "./consts/events";
 import { Updateable } from "./types/common";
 
 export default class Renderer implements Updateable {
 	private _renderer: THREE.WebGLRenderer;
 	private _passes: Pass[];
-	private _writeTarget: THREE.WebGLRenderTarget;
-	private _readTarget: THREE.WebGLRenderTarget;
 
 	public get size() { return this._renderer.getDrawingBufferSize(new THREE.Vector2(0, 0)); }
 
@@ -21,19 +20,6 @@ export default class Renderer implements Updateable {
 		});
 
 		this._passes = [];
-
-		const width = window.innerWidth;
-		const height = window.innerHeight;
-		const rtOptions: THREE.WebGLRenderTargetOptions = {
-			magFilter: THREE.NearestFilter,
-			minFilter: THREE.NearestFilter,
-			generateMipmaps: false,
-			depthBuffer: true,
-		};
-		this._writeTarget = new THREE.WebGLRenderTarget(width, height, rtOptions);
-		this._readTarget = new THREE.WebGLRenderTarget(width, height, rtOptions);
-		this._writeTarget.depthTexture = new THREE.DepthTexture(width, height, THREE.UnsignedShortType);
-		this._readTarget.depthTexture = new THREE.DepthTexture(width, height, THREE.UnsignedShortType);
 	}
 
 	public resize(width: number, height: number): void {
@@ -49,24 +35,22 @@ export default class Renderer implements Updateable {
 
 	public render() {
 		for (const pass of this._passes) {
-			pass.render(this._renderer, this._writeTarget, this._readTarget);
-			if (pass.shouldSwap) {
-				this._swapTargets();
+			const renderer = this._renderer;
+
+			pass.trigger(EVENTS.BEFORE_RENDER);
+
+			if (pass.target) {
+				renderer.setRenderTarget(pass.target);
+				renderer.render(pass.scene, pass.camera);
+				renderer.setRenderTarget(null);
+			} else {
+				renderer.render(pass.scene, pass.camera);
 			}
+
+			pass.trigger(EVENTS.AFTER_RENDER);
 		}
 	}
 
 	// tslint:disable-next-line no-empty
 	public update(ms: number) {}
-
-	public setRenderTargetSize(width: number, height: number) {
-		this._readTarget.setSize(width, height);
-		this._writeTarget.setSize(width, height);
-	}
-
-	private _swapTargets() {
-		const temp = this._writeTarget;
-		this._writeTarget = this._readTarget;
-		this._readTarget = temp;
-	}
 }

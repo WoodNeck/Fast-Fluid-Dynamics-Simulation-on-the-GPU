@@ -1,21 +1,19 @@
 import Renderer from "./Renderer";
-import RenderPass from "./passes/RenderPass";
-import Layer from "./layers/Layer";
-import Pass from "./passes/Pass";
-import MainLayer from "./layers/MainLayer";
-import AdvectionLayer from "./layers/AdvectionLayer";
+import FBO from "./FBO";
+import AdvectionPass from "./passes/AdvectionPass";
+import CopyPass from "./passes/CopyPass";
+import * as EVENTS from "./consts/events";
 
 class App {
 	private _renderer: Renderer;
-	private _layers: Map<string, Layer>;
-	private _passes: Map<string, Pass>;
+	private _advection: FBO;
 
 	constructor() {
 		const canvasBox = document.querySelector("#app") as HTMLCanvasElement;
 
 		this._renderer = new Renderer(canvasBox);
 
-		this._createLayers();
+		this._composeFBO();
 		this._composePass();
 		this._onResize();
 
@@ -23,35 +21,37 @@ class App {
 		requestAnimationFrame(this._render);
 	}
 
-	private _createLayers() {
-		this._layers = new Map();
-
-		// TODO: Create your own layers
-		this._layers.set("advect", new AdvectionLayer());
-		this._layers.set("main", new MainLayer());
+	private _composeFBO() {
+		this._advection = new FBO();
 	}
 
 	private _composePass() {
-		const layers = this._layers;
 		const renderer = this._renderer;
-		this._passes = new Map();
+		const advection = this._advection;
 
-		// TODO: Compose your own pass
-		const advectionLayer = layers.get("advect")!;
-		const mainLayer = layers.get("main")!;
-		const advectionPass = new RenderPass(advectionLayer);
-		// const renderPass = new RenderPass(mainLayer);
+		const advectionPass = new AdvectionPass();
+		advectionPass.on(EVENTS.BEFORE_RENDER, () => {
+			advectionPass.target = advection.writeTarget;
+		});
+		advectionPass.on(EVENTS.AFTER_RENDER, () => {
+			advection.swap();
+		});
 
-		this._passes.set("render", advectionPass);
+		const copyPass = new CopyPass();
+		copyPass.on(EVENTS.BEFORE_RENDER, () => {
+			copyPass.plane.updateUniforms({
+				uTex: advection.readTarget.texture,
+			});
+		});
 
 		renderer.addPass(advectionPass);
+		renderer.addPass(copyPass);
 	}
 
 	private _render = (t: number): void => {
 		const renderer = this._renderer;
 
 		// Update renderer & scenes
-		this._layers.forEach(layer => layer.update(t));
 		renderer.update(t);
 
 		// Render each scenes
@@ -65,7 +65,8 @@ class App {
 		const height = window.innerHeight;
 
 		this._renderer.resize(width, height);
-		this._layers.forEach(layer => layer.resize(width, height));
+
+		this._advection.resize(width, height);
 	}
 }
 
