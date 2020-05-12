@@ -8,6 +8,8 @@ export default class Renderer implements Updateable {
 	private _renderer: THREE.WebGLRenderer;
 	private _passes: Pass[];
 
+	public get renderer() { return this._renderer; }
+	public get gl() { return this._renderer.getContext(); }
 	public get size() { return this._renderer.getDrawingBufferSize(new THREE.Vector2(0, 0)); }
 
 	constructor(canvasElem: HTMLCanvasElement) {
@@ -18,6 +20,11 @@ export default class Renderer implements Updateable {
 			antialias: true,
 			context: ctx as WebGLRenderingContext,
 		});
+
+		const lerpExtension = this.gl.getExtension("OES_texture_float_linear");
+		if (!lerpExtension) {
+			throw new Error("Lerp extension is not enabled.");
+		}
 
 		this._passes = [];
 	}

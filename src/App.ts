@@ -1,3 +1,4 @@
+import * as THREE from "three";
 import Renderer from "./Renderer";
 import FBO from "./FBO";
 import AdvectionPass from "./passes/AdvectionPass";
@@ -6,7 +7,9 @@ import * as EVENTS from "./consts/events";
 
 class App {
 	private _renderer: Renderer;
-	private _advection: FBO;
+	private _velocity: FBO;
+	private _pressure: FBO;
+	private _vorticity: FBO;
 
 	constructor() {
 		const canvasBox = document.querySelector("#app") as HTMLCanvasElement;
@@ -22,25 +25,28 @@ class App {
 	}
 
 	private _composeFBO() {
-		this._advection = new FBO();
+		this._velocity = new FBO(0, 0, {
+			wrapS: THREE.ClampToEdgeWrapping,
+			wrapT: THREE.ClampToEdgeWrapping,
+		});
 	}
 
 	private _composePass() {
 		const renderer = this._renderer;
-		const advection = this._advection;
+		const velocity = this._velocity;
 
 		const advectionPass = new AdvectionPass();
 		advectionPass.on(EVENTS.BEFORE_RENDER, () => {
-			advectionPass.target = advection.writeTarget;
+			advectionPass.target = velocity.writeTarget;
 		});
 		advectionPass.on(EVENTS.AFTER_RENDER, () => {
-			advection.swap();
+			velocity.swap();
 		});
 
 		const copyPass = new CopyPass();
 		copyPass.on(EVENTS.BEFORE_RENDER, () => {
 			copyPass.plane.updateUniforms({
-				uTex: advection.readTarget.texture,
+				uTex: velocity.readTarget.texture,
 			});
 		});
 
@@ -66,7 +72,7 @@ class App {
 
 		this._renderer.resize(width, height);
 
-		this._advection.resize(width, height);
+		this._velocity.resize(width, height);
 	}
 }
 

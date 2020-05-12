@@ -4,7 +4,9 @@ const serve = require("rollup-plugin-serve");
 const livereload = require("rollup-plugin-livereload");
 
 const plugins = [
-	glslify(),
+	glslify({
+		compress: false,
+	}),
   serve({
 		open: true,
 		contentBase: "web",
