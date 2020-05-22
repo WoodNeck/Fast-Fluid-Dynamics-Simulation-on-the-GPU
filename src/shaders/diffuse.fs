@@ -3,10 +3,10 @@ precision highp float;
 precision highp sampler2D;
 
 uniform float uDt; // timestep
-uniform float uGrid; // grid scale
+uniform float uAlpha;
+uniform float uRBeta; // reciprocal beta
 uniform float uInvGrid; // 1 / grid scale
 uniform sampler2D uVelocity; // input velocity
-uniform sampler2D uQty; // qty to advect
 
 in vec2 vUv;
 out vec4 fragColor;

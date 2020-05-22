@@ -58,6 +58,7 @@ export default class Renderer implements Updateable {
 		}
 	}
 
-	// tslint:disable-next-line no-empty
-	public update(ms: number) {}
+	public update(ms: number) {
+		this._passes.forEach(pass => pass.update(ms));
+	}
 }
