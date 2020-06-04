@@ -5,6 +5,7 @@ precision highp sampler2D;
 uniform float uDt; // timestep
 uniform float uGrid; // grid scale
 uniform float uInvGrid; // 1 / grid scale
+uniform float uDissipation; // dissipation
 uniform sampler2D uVelocity; // input velocity
 uniform sampler2D uQty; // qty to advect
 
@@ -16,5 +17,6 @@ void main() {
 	vec2 pos = vUv - uDt * uInvGrid * texture(uVelocity, vUv).xy;
 
 	// Interpolate and write to the output fragment
-	fragColor = texture(uQty, pos);
+	fragColor = uDissipation * texture(uQty, pos);
+	fragColor.a = 1.0;
 }

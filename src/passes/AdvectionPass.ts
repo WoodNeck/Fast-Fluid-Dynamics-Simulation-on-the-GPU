@@ -9,7 +9,7 @@ import FullscreenPlane from "~/objects/FullscreenPlane";
 class AdvectionPass extends Pass {
 	public plane: FullscreenPlane;
 
-	constructor(extensionEnabled: boolean) {
+	constructor(extensionEnabled: boolean, res: number, dissipation: number) {
 		super();
 		this.scene = new THREE.Scene();
 		this.camera = new THREE.PerspectiveCamera();
@@ -20,12 +20,11 @@ class AdvectionPass extends Pass {
 			? advectFS
 			: advectBilerpFS;
 
-		const gridScale = 256;
-
 		this.plane = new FullscreenPlane({
 			uDt: new THREE.Uniform(0),
-			uGrid: new THREE.Uniform(gridScale),
-			uInvGrid: new THREE.Uniform(1 / gridScale),
+			uGrid: new THREE.Uniform(res),
+			uInvGrid: new THREE.Uniform(1 / res),
+			uDissipation: new THREE.Uniform(dissipation),
 			uVelocity: null,
 			uQty: null,
 		}, vs, fs);

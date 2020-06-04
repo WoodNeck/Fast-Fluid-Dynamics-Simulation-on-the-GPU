@@ -10,7 +10,11 @@ export default class Renderer implements Updateable {
 
 	public get renderer() { return this._renderer; }
 	public get gl() { return this._renderer.getContext(); }
-	public get size() { return this._renderer.getDrawingBufferSize(new THREE.Vector2(0, 0)); }
+	public get size() { return this._renderer.getSize(new THREE.Vector2()); }
+	public get aspect() {
+		const size = this.size;
+		return size.x / size.y;
+	}
 
 	constructor(canvasElem: HTMLCanvasElement) {
 		const ctx = canvasElem.getContext("webgl2");
@@ -20,6 +24,7 @@ export default class Renderer implements Updateable {
 			antialias: true,
 			context: ctx as WebGLRenderingContext,
 		});
+		this._renderer.autoClear = false;
 
 		const lerpExtension = this.gl.getExtension("OES_texture_float_linear");
 		if (!lerpExtension) {
@@ -42,20 +47,24 @@ export default class Renderer implements Updateable {
 
 	public render() {
 		for (const pass of this._passes) {
-			const renderer = this._renderer;
-
-			pass.trigger(EVENTS.BEFORE_RENDER);
-
-			if (pass.target) {
-				renderer.setRenderTarget(pass.target);
-				renderer.render(pass.scene, pass.camera);
-				renderer.setRenderTarget(null);
-			} else {
-				renderer.render(pass.scene, pass.camera);
-			}
-
-			pass.trigger(EVENTS.AFTER_RENDER);
+			this.renderSinglePass(pass);
 		}
+	}
+
+	public renderSinglePass(pass: Pass) {
+		const renderer = this._renderer;
+
+		pass.trigger(EVENTS.BEFORE_RENDER);
+
+		if (pass.target) {
+			renderer.setRenderTarget(pass.target);
+			renderer.render(pass.scene, pass.camera);
+			renderer.setRenderTarget(null);
+		} else {
+			renderer.render(pass.scene, pass.camera);
+		}
+
+		pass.trigger(EVENTS.AFTER_RENDER);
 	}
 
 	public update(ms: number) {

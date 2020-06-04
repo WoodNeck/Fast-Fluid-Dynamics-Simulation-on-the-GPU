@@ -14,7 +14,7 @@ class FBO {
 				magFilter: THREE.LinearFilter,
 				minFilter: THREE.LinearFilter,
 				generateMipmaps: false,
-				depthBuffer: true,
+				depthBuffer: false,
 			}, ...rtOptions
 		};
 		this._writeTarget = new THREE.WebGLRenderTarget(width, height, options);
