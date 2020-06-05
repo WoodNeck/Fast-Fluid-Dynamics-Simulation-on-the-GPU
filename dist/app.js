@@ -50482,8 +50482,9 @@ version: 1.0.0
 	                uTex: density.readTarget.texture,
 	            });
 	        });
-	        renderer.addPass(divergencePass);
+	        renderer.addPass(curlPass);
 	        renderer.addPass(vorticityPass);
+	        renderer.addPass(divergencePass);
 	        renderer.addPass(clearPass);
 	        renderer.addPass(advectVelocityPass);
 	        renderer.addPass(advectDensityPass);
