@@ -1,2 +1,3 @@
-This is my attempt on GPU Gems 1 - Ch38
+This is my attempt on Fast Fluid Dynamics Simulation on three.js
 - https://developer.download.nvidia.com/books/HTML/gpugems/gpugems_ch38.html
+- https://github.com/PavelDoGreat/WebGL-Fluid-Simulation

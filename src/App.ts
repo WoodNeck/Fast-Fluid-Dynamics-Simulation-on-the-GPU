@@ -5,7 +5,10 @@ import AdvectionPass from "./passes/AdvectionPass";
 import ClearPass from "./passes/ClearPass";
 import CopyPass from "./passes/CopyPass";
 import SplatPass from "./passes/SplatPass";
+import DivergencePass from "./passes/DivergencePass";
+import CurlPass from "./passes/CurlPass";
 import * as EVENTS from "./consts/events";
+import VorticityPass from "./passes/VorticityPass";
 
 class App {
 	private _renderer: Renderer;
@@ -15,6 +18,8 @@ class App {
 	private _velocity: FBO;
 	private _pressure: FBO;
 	private _vorticity: FBO;
+	private _curl: THREE.WebGLRenderTarget;
+	private _divergence: THREE.WebGLRenderTarget;
 
 	private _splatPass: SplatPass;
 	private _inputs: THREE.Vector4[] = [];
@@ -23,6 +28,7 @@ class App {
 	private _simRes = 128;
 	private _dyeRes = 2048;
 
+	private _curlStrength = 20;
 	private _densityDissipation = 0.97;
 	private _velocityDissipation = 0.98;
 	private _pressureDissipation = 0.8;
@@ -64,6 +70,16 @@ class App {
 			wrapS: THREE.ClampToEdgeWrapping,
 			wrapT: THREE.ClampToEdgeWrapping,
 		});
+		this._curl = new THREE.WebGLRenderTarget(simRes, simRes, {
+			type: THREE.HalfFloatType,
+			format: THREE.RedFormat,
+			minFilter: THREE.NearestFilter,
+		});
+		this._divergence = new THREE.WebGLRenderTarget(simRes, simRes, {
+			type: THREE.HalfFloatType,
+			format: THREE.RedFormat,
+			minFilter: THREE.NearestFilter,
+		});
 	}
 
 	private _composePass() {
@@ -71,6 +87,7 @@ class App {
 		const density = this._density;
 		const velocity = this._velocity;
 		const pressure = this._pressure;
+		const curl = this._curl;
 
 		const simRes = this._simRes;
 		const dyeRes = this._dyeRes;
@@ -79,9 +96,40 @@ class App {
 
 		this._splatPass = new SplatPass();
 
+		const curlPass = new CurlPass(simRes);
+		curlPass.on(EVENTS.BEFORE_RENDER, () => {
+			curlPass.target = curl;
+			curlPass.plane.updateUniforms({
+				uVelocity: velocity.readTarget.texture,
+			});
+		});
+
+		const vorticityPass = new VorticityPass(simRes, this._curlStrength);
+		vorticityPass.on(EVENTS.BEFORE_RENDER, () => {
+			vorticityPass.target = velocity.writeTarget;
+			vorticityPass.plane.updateUniforms({
+				uVelocity: velocity.readTarget.texture,
+				uCurlTex: curl.texture,
+			});
+		});
+		vorticityPass.on(EVENTS.AFTER_RENDER, () => {
+			velocity.swap();
+		});
+
+		const divergencePass = new DivergencePass(simRes);
+		divergencePass.on(EVENTS.BEFORE_RENDER, () => {
+			divergencePass.target = this._divergence;
+			divergencePass.plane.updateUniforms({
+				uVelocity: velocity.readTarget.texture,
+			});
+		});
+
 		const clearPass = new ClearPass(this._pressureDissipation);
 		clearPass.on(EVENTS.BEFORE_RENDER, () => {
 			clearPass.target = pressure.writeTarget;
+			clearPass.plane.updateUniforms({
+				uTex: pressure.readTarget.texture,
+			});
 		});
 		clearPass.on(EVENTS.AFTER_RENDER, () => {
 			pressure.swap();
@@ -118,6 +166,10 @@ class App {
 			});
 		});
 
+		renderer.addPass(curlPass);
+		renderer.addPass(vorticityPass);
+		renderer.addPass(divergencePass);
+		renderer.addPass(clearPass);
 		renderer.addPass(advectVelocityPass);
 		renderer.addPass(advectDensityPass);
 		renderer.addPass(copyPass);
@@ -161,7 +213,7 @@ class App {
 				uAspect: renderer.aspect,
 				uPoint: new THREE.Vector2(input.x, input.y),
 				uCol: new THREE.Vector3(input.z, input.w, 1),
-				uRadius: 0.001,
+				uInvRadius: 1000,
 			});
 
 			renderer.renderSinglePass(splatPass);

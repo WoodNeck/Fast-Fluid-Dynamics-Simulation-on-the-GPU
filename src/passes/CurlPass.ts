@@ -1,29 +1,26 @@
 import * as THREE from "three";
 
 import Pass from "./Pass";
-import defaultVS from "../shaders/default.vs";
-import splatFS from "../shaders/splat.fs";
+import nearVS from "../shaders/near.vs";
+import curlFS from "../shaders/curl.fs";
 import FullscreenPlane from "~/objects/FullscreenPlane";
 
-class SplatPass extends Pass {
+class CurlPass extends Pass {
 	public plane: FullscreenPlane;
 
-	constructor() {
+	constructor(res: number) {
 		super();
 		this.scene = new THREE.Scene();
 		this.camera = new THREE.PerspectiveCamera();
 		this.target = null;
 
 		this.plane = new FullscreenPlane({
-			uTex: null,
-			uAspect: 1,
-			uCol: new THREE.Uniform(0),
-			uPoint: new THREE.Uniform(0),
-			uInvRadius: new THREE.Uniform(1),
-		}, defaultVS, splatFS);
+			uTexelSize: new THREE.Uniform(new THREE.Vector2(1 / res, 1 / res)),
+			uVelocity: null,
+		}, nearVS, curlFS);
 
 		this.scene.add(this.plane.mesh);
 	}
 }
 
-export default SplatPass;
+export default CurlPass;

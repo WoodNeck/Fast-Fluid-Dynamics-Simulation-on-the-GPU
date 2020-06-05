@@ -6,7 +6,7 @@ uniform sampler2D uTex;
 uniform float uAspect;
 uniform vec3 uCol;
 uniform vec2 uPoint;
-uniform float uRadius;
+uniform float uInvRadius;
 
 in vec2 vUv;
 out vec4 fragColor;
@@ -14,7 +14,7 @@ out vec4 fragColor;
 void main () {
 		vec2 p = vUv - uPoint.xy;
 		p.x *= uAspect;
-		vec3 splat = exp(-dot(p, p) / uRadius) * uCol;
+		vec3 splat = exp(-dot(p, p) * uInvRadius) * uCol;
 		vec3 base = texture(uTex, vUv).xyz;
 		fragColor = vec4(base + splat, 1.0);
 }

@@ -9,5 +9,5 @@ in vec2 vUv;
 out vec4 fragColor;
 
 void main() {
-	fragColor = dissipation * texture(uTex, vUv);
+	fragColor = uDissipation * texture(uTex, vUv);
 }

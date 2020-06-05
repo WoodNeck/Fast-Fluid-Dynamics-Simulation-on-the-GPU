@@ -8,6 +8,10 @@ uniform float uRBeta; // reciprocal beta
 uniform float uInvGrid; // 1 / grid scale
 uniform sampler2D uVelocity; // input velocity
 
+in vec2 vL;
+in vec2 vR;
+in vec2 vT;
+in vec2 vB;
 in vec2 vUv;
 out vec4 fragColor;
 
