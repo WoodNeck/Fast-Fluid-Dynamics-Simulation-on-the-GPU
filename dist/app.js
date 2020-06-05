@@ -50182,7 +50182,7 @@ version: 1.0.0
 	    return AdvectionPass;
 	}(Pass));
 
-	var clearFS = "#version 300 es\nprecision highp float;precision highp sampler2D;\n#define GLSLIFY 1\nuniform sampler2D uTex;uniform float uDissipation;in vec2 vUv;out vec4 fragColor;void main(){fragColor=dissipation*texture(uTex,vUv);}"; // eslint-disable-line
+	var clearFS = "#version 300 es\nprecision highp float;precision highp sampler2D;\n#define GLSLIFY 1\nuniform sampler2D uTex;uniform float uDissipation;in vec2 vUv;out vec4 fragColor;void main(){fragColor=uDissipation*texture(uTex,vUv);}"; // eslint-disable-line
 
 	var ClearPass = /** @class */ (function (_super) {
 	    __extends(ClearPass, _super);
@@ -50219,7 +50219,7 @@ version: 1.0.0
 	    return CopyPass;
 	}(Pass));
 
-	var splatFS = "#version 300 es\nprecision highp float;precision highp sampler2D;\n#define GLSLIFY 1\nuniform sampler2D uTex;uniform float uAspect;uniform vec3 uCol;uniform vec2 uPoint;uniform float uRadius;in vec2 vUv;out vec4 fragColor;void main(){vec2 p=vUv-uPoint.xy;p.x*=uAspect;vec3 splat=exp(-dot(p,p)/uRadius)*uCol;vec3 base=texture(uTex,vUv).xyz;fragColor=vec4(base+splat,1.0);}"; // eslint-disable-line
+	var splatFS = "#version 300 es\nprecision highp float;precision highp sampler2D;\n#define GLSLIFY 1\nuniform sampler2D uTex;uniform float uAspect;uniform vec3 uCol;uniform vec2 uPoint;uniform float uInvRadius;in vec2 vUv;out vec4 fragColor;void main(){vec2 p=vUv-uPoint.xy;p.x*=uAspect;vec3 splat=exp(-dot(p,p)*uInvRadius)*uCol;vec3 base=texture(uTex,vUv).xyz;fragColor=vec4(base+splat,1.0);}"; // eslint-disable-line
 
 	var SplatPass = /** @class */ (function (_super) {
 	    __extends(SplatPass, _super);
@@ -50233,12 +50233,79 @@ version: 1.0.0
 	            uAspect: 1,
 	            uCol: new Uniform(0),
 	            uPoint: new Uniform(0),
-	            uRadius: new Uniform(0),
+	            uInvRadius: new Uniform(1),
 	        }, defaultVS, splatFS);
 	        _this.scene.add(_this.plane.mesh);
 	        return _this;
 	    }
 	    return SplatPass;
+	}(Pass));
+
+	var nearVS = "#version 300 es\nprecision highp float;\n#define GLSLIFY 1\nuniform mat4 projectionMatrix;uniform mat4 modelViewMatrix;uniform vec2 uTexelSize;in vec3 position;in vec2 uv;out vec2 vUv;out vec2 vL;out vec2 vR;out vec2 vT;out vec2 vB;void main(){vUv=uv;vL=vUv-vec2(uTexelSize.x,0.0);vR=vUv+vec2(uTexelSize.x,0.0);vT=vUv+vec2(0.0,uTexelSize.y);vB=vUv-vec2(0.0,uTexelSize.y);gl_Position=vec4(position,1.0);}"; // eslint-disable-line
+
+	var divergenceFS = "#version 300 es\nprecision highp float;precision highp sampler2D;\n#define GLSLIFY 1\nuniform sampler2D uVelocity;in vec2 vL;in vec2 vR;in vec2 vT;in vec2 vB;out vec4 fragColor;void main(){float wL=texture(uVelocity,vL).x;float wR=texture(uVelocity,vR).x;float wT=texture(uVelocity,vT).y;float wB=texture(uVelocity,vB).y;fragColor=vec4(0.5*((wR-wL)+(wT-wB)),0,0,1.0);}"; // eslint-disable-line
+
+	var DivergencePass = /** @class */ (function (_super) {
+	    __extends(DivergencePass, _super);
+	    function DivergencePass(res) {
+	        var _this = _super.call(this) || this;
+	        _this.scene = new Scene();
+	        _this.camera = new PerspectiveCamera();
+	        _this.target = null;
+	        _this.plane = new FullscreenPlane({
+	            uTexelSize: new Uniform(new Vector2(1 / res, 1 / res)),
+	            uVelocity: null,
+	        }, nearVS, divergenceFS);
+	        _this.scene.add(_this.plane.mesh);
+	        return _this;
+	    }
+	    return DivergencePass;
+	}(Pass));
+
+	var curlFS = "#version 300 es\nprecision highp float;precision highp sampler2D;\n#define GLSLIFY 1\nuniform sampler2D uVelocity;in vec2 vL;in vec2 vR;in vec2 vT;in vec2 vB;out vec4 fragColor;void main(){float wL=texture(uVelocity,vL).y;float wR=texture(uVelocity,vR).y;float wT=texture(uVelocity,vT).x;float wB=texture(uVelocity,vB).x;fragColor=vec4(0.5*((wR-wL)-(wT-wB)),0,0,1.0);}"; // eslint-disable-line
+
+	var CurlPass = /** @class */ (function (_super) {
+	    __extends(CurlPass, _super);
+	    function CurlPass(res) {
+	        var _this = _super.call(this) || this;
+	        _this.scene = new Scene();
+	        _this.camera = new PerspectiveCamera();
+	        _this.target = null;
+	        _this.plane = new FullscreenPlane({
+	            uTexelSize: new Uniform(new Vector2(1 / res, 1 / res)),
+	            uVelocity: null,
+	        }, nearVS, curlFS);
+	        _this.scene.add(_this.plane.mesh);
+	        return _this;
+	    }
+	    return CurlPass;
+	}(Pass));
+
+	var vorticityFS = "#version 300 es\nprecision highp float;precision highp sampler2D;\n#define GLSLIFY 1\nuniform float uCurl;uniform float uDt;uniform sampler2D uVelocity;uniform sampler2D uCurlTex;in vec2 vL;in vec2 vR;in vec2 vT;in vec2 vB;in vec2 vUv;out vec4 fragColor;void main(){float wL=texture(uCurlTex,vL).x;float wR=texture(uCurlTex,vR).x;float wT=texture(uCurlTex,vT).x;float wB=texture(uCurlTex,vB).x;float wC=texture(uCurlTex,vUv).x;vec2 force=0.5*vec2(abs(wT)-abs(wB),abs(wR)-abs(wL));force/=length(force)+0.0001;force*=uCurl*wC;force.y*=-1.0;vec2 vel=texture(uVelocity,vUv).xy;fragColor=vec4(vel+force*uDt,0.0,1.0);}"; // eslint-disable-line
+
+	var VorticityPass = /** @class */ (function (_super) {
+	    __extends(VorticityPass, _super);
+	    function VorticityPass(res, curlStrength) {
+	        var _this = _super.call(this) || this;
+	        _this.scene = new Scene();
+	        _this.camera = new PerspectiveCamera();
+	        _this.target = null;
+	        _this.plane = new FullscreenPlane({
+	            uTexelSize: new Uniform(new Vector2(1 / res, 1 / res)),
+	            uCurl: new Uniform(curlStrength),
+	            uDt: new Uniform(0),
+	            uVelocity: null,
+	            uCurlTex: null,
+	        }, nearVS, vorticityFS);
+	        _this.scene.add(_this.plane.mesh);
+	        return _this;
+	    }
+	    VorticityPass.prototype.update = function (ms) {
+	        this.plane.updateUniforms({
+	            uDt: ms / 1000,
+	        });
+	    };
+	    return VorticityPass;
 	}(Pass));
 
 	var App = /** @class */ (function () {
@@ -50247,6 +50314,7 @@ version: 1.0.0
 	        this._inputs = [];
 	        this._simRes = 128;
 	        this._dyeRes = 2048;
+	        this._curlStrength = 20;
 	        this._densityDissipation = 0.97;
 	        this._velocityDissipation = 0.98;
 	        this._pressureDissipation = 0.8;
@@ -50277,7 +50345,7 @@ version: 1.0.0
 	                    uAspect: renderer.aspect,
 	                    uPoint: new Vector2(input.x, input.y),
 	                    uCol: new Vector3(input.z, input.w, 1),
-	                    uRadius: 0.001,
+	                    uInvRadius: 1000,
 	                });
 	                renderer.renderSinglePass(splatPass);
 	                splatPass.target = density.writeTarget;
@@ -50329,19 +50397,59 @@ version: 1.0.0
 	            wrapS: ClampToEdgeWrapping,
 	            wrapT: ClampToEdgeWrapping,
 	        });
+	        this._curl = new WebGLRenderTarget(simRes, simRes, {
+	            type: HalfFloatType,
+	            format: RedFormat,
+	            minFilter: NearestFilter,
+	        });
+	        this._divergence = new WebGLRenderTarget(simRes, simRes, {
+	            type: HalfFloatType,
+	            format: RedFormat,
+	            minFilter: NearestFilter,
+	        });
 	    };
 	    App.prototype._composePass = function () {
+	        var _this = this;
 	        var renderer = this._renderer;
 	        var density = this._density;
 	        var velocity = this._velocity;
 	        var pressure = this._pressure;
+	        var curl = this._curl;
 	        var simRes = this._simRes;
 	        var dyeRes = this._dyeRes;
 	        var lerpExtension = this._renderer.gl.getExtension("OES_texture_float_linear");
 	        this._splatPass = new SplatPass();
+	        var curlPass = new CurlPass(simRes);
+	        curlPass.on(BEFORE_RENDER, function () {
+	            curlPass.target = curl;
+	            curlPass.plane.updateUniforms({
+	                uVelocity: velocity.readTarget.texture,
+	            });
+	        });
+	        var vorticityPass = new VorticityPass(simRes, this._curlStrength);
+	        vorticityPass.on(BEFORE_RENDER, function () {
+	            vorticityPass.target = velocity.writeTarget;
+	            vorticityPass.plane.updateUniforms({
+	                uVelocity: velocity.readTarget.texture,
+	                uCurlTex: curl.texture,
+	            });
+	        });
+	        vorticityPass.on(AFTER_RENDER, function () {
+	            velocity.swap();
+	        });
+	        var divergencePass = new DivergencePass(simRes);
+	        divergencePass.on(BEFORE_RENDER, function () {
+	            divergencePass.target = _this._divergence;
+	            divergencePass.plane.updateUniforms({
+	                uVelocity: velocity.readTarget.texture,
+	            });
+	        });
 	        var clearPass = new ClearPass(this._pressureDissipation);
 	        clearPass.on(BEFORE_RENDER, function () {
 	            clearPass.target = pressure.writeTarget;
+	            clearPass.plane.updateUniforms({
+	                uTex: pressure.readTarget.texture,
+	            });
 	        });
 	        clearPass.on(AFTER_RENDER, function () {
 	            pressure.swap();
@@ -50374,6 +50482,9 @@ version: 1.0.0
 	                uTex: density.readTarget.texture,
 	            });
 	        });
+	        renderer.addPass(divergencePass);
+	        renderer.addPass(vorticityPass);
+	        renderer.addPass(clearPass);
 	        renderer.addPass(advectVelocityPass);
 	        renderer.addPass(advectDensityPass);
 	        renderer.addPass(copyPass);
