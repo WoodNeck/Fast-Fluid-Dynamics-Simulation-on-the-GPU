@@ -50308,6 +50308,46 @@ version: 1.0.0
 	    return VorticityPass;
 	}(Pass));
 
+	var pressureFS = "#version 300 es\nprecision highp float;precision highp sampler2D;\n#define GLSLIFY 1\nuniform sampler2D uPressure;uniform sampler2D uDivergence;in vec2 vL;in vec2 vR;in vec2 vT;in vec2 vB;in vec2 vUv;out vec4 fragColor;void main(){float wL=texture(uPressure,vL).x;float wR=texture(uPressure,vR).x;float wT=texture(uPressure,vT).x;float wB=texture(uPressure,vB).x;float wC=texture(uPressure,vUv).x;float divergence=texture(uDivergence,vUv).x;float pressure=0.25*(wL+wR+wT+wB-divergence);fragColor=vec4(pressure,0,0,1);}"; // eslint-disable-line
+
+	var PressurePass = /** @class */ (function (_super) {
+	    __extends(PressurePass, _super);
+	    function PressurePass(res) {
+	        var _this = _super.call(this) || this;
+	        _this.scene = new Scene();
+	        _this.camera = new PerspectiveCamera();
+	        _this.target = null;
+	        _this.plane = new FullscreenPlane({
+	            uPressure: null,
+	            uDivergence: null,
+	            uTexelSize: new Uniform(new Vector2(1 / res, 1 / res)),
+	        }, nearVS, pressureFS);
+	        _this.scene.add(_this.plane.mesh);
+	        return _this;
+	    }
+	    return PressurePass;
+	}(Pass));
+
+	var gradientSubtractFS = "#version 300 es\nprecision highp float;precision highp sampler2D;\n#define GLSLIFY 1\nuniform sampler2D uPressure;uniform sampler2D uVelocity;in vec2 vL;in vec2 vR;in vec2 vT;in vec2 vB;in vec2 vUv;out vec4 fragColor;void main(){float wL=texture(uPressure,vL).x;float wR=texture(uPressure,vR).x;float wT=texture(uPressure,vT).x;float wB=texture(uPressure,vB).x;float wC=texture(uPressure,vUv).x;vec2 velocity=texture(uVelocity,vUv).xy;velocity.xy-=vec2(wR-wL,wT-wB);fragColor=vec4(velocity,0,1);}"; // eslint-disable-line
+
+	var GradientSubtractPass = /** @class */ (function (_super) {
+	    __extends(GradientSubtractPass, _super);
+	    function GradientSubtractPass(res) {
+	        var _this = _super.call(this) || this;
+	        _this.scene = new Scene();
+	        _this.camera = new PerspectiveCamera();
+	        _this.target = null;
+	        _this.plane = new FullscreenPlane({
+	            uPressure: null,
+	            uVelocity: null,
+	            uTexelSize: new Uniform(new Vector2(1 / res, 1 / res)),
+	        }, nearVS, gradientSubtractFS);
+	        _this.scene.add(_this.plane.mesh);
+	        return _this;
+	    }
+	    return GradientSubtractPass;
+	}(Pass));
+
 	var App = /** @class */ (function () {
 	    function App() {
 	        var _this = this;
@@ -50318,6 +50358,7 @@ version: 1.0.0
 	        this._densityDissipation = 0.97;
 	        this._velocityDissipation = 0.98;
 	        this._pressureDissipation = 0.8;
+	        this._pressureIterations = 3;
 	        this._onMouseMove = function (e) {
 	            var x = e.pageX;
 	            var y = e.pageY;
@@ -50326,7 +50367,7 @@ version: 1.0.0
 	                return;
 	            }
 	            var size = _this._renderer.size;
-	            _this._inputs.push(new Vector4(x / size.x, 1 - y / size.y, 5 * (x - _this._lastPos.x), 5 * (y - _this._lastPos.y)));
+	            _this._inputs.push(new Vector4(x / size.x, 1 - y / size.y, 5 * (x - _this._lastPos.x), -5 * (y - _this._lastPos.y)));
 	            _this._lastPos.set(x, y);
 	        };
 	        this._render = function () {
@@ -50414,6 +50455,7 @@ version: 1.0.0
 	        var density = this._density;
 	        var velocity = this._velocity;
 	        var pressure = this._pressure;
+	        var divergence = this._divergence;
 	        var curl = this._curl;
 	        var simRes = this._simRes;
 	        var dyeRes = this._dyeRes;
@@ -50451,8 +50493,31 @@ version: 1.0.0
 	                uTex: pressure.readTarget.texture,
 	            });
 	        });
+	        var pressurePass = new PressurePass(simRes);
 	        clearPass.on(AFTER_RENDER, function () {
 	            pressure.swap();
+	            pressurePass.plane.updateUniforms({
+	                uDivergence: divergence.texture,
+	            });
+	            for (var i = 0; i < _this._pressureIterations; i++) {
+	                pressurePass.target = pressure.writeTarget;
+	                pressurePass.plane.updateUniforms({
+	                    uPressure: pressure.readTarget.texture,
+	                });
+	                renderer.renderSinglePass(pressurePass);
+	                pressure.swap();
+	            }
+	        });
+	        var gradientSubtractPass = new GradientSubtractPass(simRes);
+	        gradientSubtractPass.on(BEFORE_RENDER, function () {
+	            gradientSubtractPass.target = velocity.writeTarget;
+	            gradientSubtractPass.plane.updateUniforms({
+	                uPressure: pressure.readTarget.texture,
+	                uVelocity: velocity.readTarget.texture,
+	            });
+	        });
+	        gradientSubtractPass.on(AFTER_RENDER, function () {
+	            velocity.swap();
 	        });
 	        var advectVelocityPass = new AdvectionPass(Boolean(lerpExtension), simRes, this._velocityDissipation);
 	        advectVelocityPass.on(BEFORE_RENDER, function () {
@@ -50481,11 +50546,16 @@ version: 1.0.0
 	            copyPass.plane.updateUniforms({
 	                uTex: density.readTarget.texture,
 	            });
+	            renderer.renderer.autoClear = true;
+	        });
+	        copyPass.on(AFTER_RENDER, function () {
+	            renderer.renderer.autoClear = false;
 	        });
 	        renderer.addPass(curlPass);
 	        renderer.addPass(vorticityPass);
 	        renderer.addPass(divergencePass);
 	        renderer.addPass(clearPass);
+	        renderer.addPass(gradientSubtractPass);
 	        renderer.addPass(advectVelocityPass);
 	        renderer.addPass(advectDensityPass);
 	        renderer.addPass(copyPass);
