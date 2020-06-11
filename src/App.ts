@@ -9,6 +9,8 @@ import DivergencePass from "./passes/DivergencePass";
 import CurlPass from "./passes/CurlPass";
 import * as EVENTS from "./consts/events";
 import VorticityPass from "./passes/VorticityPass";
+import PressurePass from "./passes/PressurePass";
+import GradientSubtractPass from "./passes/GradientSubtractPass";
 
 class App {
 	private _renderer: Renderer;
@@ -32,6 +34,7 @@ class App {
 	private _densityDissipation = 0.97;
 	private _velocityDissipation = 0.98;
 	private _pressureDissipation = 0.8;
+	private _pressureIterations = 3;
 
 	constructor() {
 		const canvasBox = document.querySelector("#app") as HTMLCanvasElement;
@@ -87,6 +90,7 @@ class App {
 		const density = this._density;
 		const velocity = this._velocity;
 		const pressure = this._pressure;
+		const divergence = this._divergence;
 		const curl = this._curl;
 
 		const simRes = this._simRes;
@@ -131,8 +135,34 @@ class App {
 				uTex: pressure.readTarget.texture,
 			});
 		});
+
+		const pressurePass = new PressurePass(simRes);
 		clearPass.on(EVENTS.AFTER_RENDER, () => {
 			pressure.swap();
+			pressurePass.plane.updateUniforms({
+				uDivergence: divergence.texture,
+			});
+
+			for (let i = 0; i < this._pressureIterations; i++) {
+				pressurePass.target = pressure.writeTarget;
+				pressurePass.plane.updateUniforms({
+					uPressure: pressure.readTarget.texture,
+				});
+				renderer.renderSinglePass(pressurePass);
+				pressure.swap();
+			}
+		});
+
+		const gradientSubtractPass = new GradientSubtractPass(simRes);
+		gradientSubtractPass.on(EVENTS.BEFORE_RENDER, () => {
+			gradientSubtractPass.target = velocity.writeTarget;
+			gradientSubtractPass.plane.updateUniforms({
+				uPressure: pressure.readTarget.texture,
+				uVelocity: velocity.readTarget.texture,
+			});
+		});
+		gradientSubtractPass.on(EVENTS.AFTER_RENDER, () => {
+			velocity.swap();
 		});
 
 		const advectVelocityPass = new AdvectionPass(Boolean(lerpExtension), simRes, this._velocityDissipation);
@@ -164,12 +194,18 @@ class App {
 			copyPass.plane.updateUniforms({
 				uTex: density.readTarget.texture,
 			});
+			renderer.renderer.autoClear = true;
+		});
+
+		copyPass.on(EVENTS.AFTER_RENDER, () => {
+			renderer.renderer.autoClear = false;
 		});
 
 		renderer.addPass(curlPass);
 		renderer.addPass(vorticityPass);
 		renderer.addPass(divergencePass);
 		renderer.addPass(clearPass);
+		renderer.addPass(gradientSubtractPass);
 		renderer.addPass(advectVelocityPass);
 		renderer.addPass(advectDensityPass);
 		renderer.addPass(copyPass);
@@ -189,7 +225,7 @@ class App {
 			x / size.x,
 			1 - y / size.y,
 			5 * (x - this._lastPos.x),
-			5 * (y - this._lastPos.y)
+			-5 * (y - this._lastPos.y)
 		));
 
 		this._lastPos.set(x, y);
