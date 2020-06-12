@@ -38,7 +38,7 @@ export default class Renderer implements Updateable {
 		const renderer = this._renderer;
 
 		renderer.setPixelRatio(window.devicePixelRatio);
-		renderer.setSize(width, height);
+		renderer.setSize(width, height, false);
 	}
 
 	public addPass(pass: Pass) {

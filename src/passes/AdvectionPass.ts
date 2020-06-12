@@ -34,7 +34,7 @@ class AdvectionPass extends Pass {
 
 	public update(ms: number) {
 		this.plane.updateUniforms({
-			uDt: ms,
+			uDt: ms / 1000,
 		});
 	}
 }

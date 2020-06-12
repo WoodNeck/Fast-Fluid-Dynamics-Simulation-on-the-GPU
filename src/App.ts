@@ -58,20 +58,20 @@ class App {
 		this._density = new FBO(dyeRes, dyeRes, {
 			type: THREE.FloatType,
 			format: THREE.RGBAFormat,
-			wrapS: THREE.ClampToEdgeWrapping,
-			wrapT: THREE.ClampToEdgeWrapping,
+			wrapS: THREE.RepeatWrapping,
+			wrapT: THREE.RepeatWrapping,
 		});
 		this._velocity = new FBO(simRes, simRes, {
 			type: THREE.FloatType,
 			format: THREE.RGBAFormat,
-			wrapS: THREE.ClampToEdgeWrapping,
-			wrapT: THREE.ClampToEdgeWrapping,
+			wrapS: THREE.RepeatWrapping,
+			wrapT: THREE.RepeatWrapping,
 		});
 		this._pressure = new FBO(simRes, simRes, {
 			type: THREE.FloatType,
 			format: THREE.RGBAFormat,
-			wrapS: THREE.ClampToEdgeWrapping,
-			wrapT: THREE.ClampToEdgeWrapping,
+			wrapS: THREE.RepeatWrapping,
+			wrapT: THREE.RepeatWrapping,
 		});
 		this._curl = new THREE.WebGLRenderTarget(simRes, simRes, {
 			type: THREE.HalfFloatType,
