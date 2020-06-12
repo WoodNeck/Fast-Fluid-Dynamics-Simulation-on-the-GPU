@@ -11,6 +11,7 @@ import * as EVENTS from "./consts/events";
 import VorticityPass from "./passes/VorticityPass";
 import PressurePass from "./passes/PressurePass";
 import GradientSubtractPass from "./passes/GradientSubtractPass";
+import ColorRestrictionPass from "./passes/ColorRestrictionPass";
 
 class App {
 	private _renderer: Renderer;
@@ -19,7 +20,7 @@ class App {
 	private _density: FBO;
 	private _velocity: FBO;
 	private _pressure: FBO;
-	private _vorticity: FBO;
+	private _pixelated: FBO;
 	private _curl: THREE.WebGLRenderTarget;
 	private _divergence: THREE.WebGLRenderTarget;
 
@@ -28,7 +29,7 @@ class App {
 	private _lastPos: THREE.Vector2;
 
 	private _simRes = 128;
-	private _dyeRes = 2048;
+	private _dyeRes = 512;
 
 	private _curlStrength = 20;
 	private _densityDissipation = 0.97;
@@ -83,6 +84,12 @@ class App {
 			format: THREE.RedFormat,
 			minFilter: THREE.NearestFilter,
 		});
+		this._pixelated = new FBO(1, 1, {
+			type: THREE.FloatType,
+			format: THREE.RGBAFormat,
+			minFilter: THREE.NearestFilter,
+			magFilter: THREE.NearestFilter,
+		});
 	}
 
 	private _composePass() {
@@ -92,6 +99,7 @@ class App {
 		const pressure = this._pressure;
 		const divergence = this._divergence;
 		const curl = this._curl;
+		const pixelated = this._pixelated;
 
 		const simRes = this._simRes;
 		const dyeRes = this._dyeRes;
@@ -189,16 +197,33 @@ class App {
 			density.swap();
 		});
 
+		const pixelatePass = new CopyPass();
+		pixelatePass.on(EVENTS.BEFORE_RENDER, () => {
+			pixelatePass.target = pixelated.writeTarget;
+			pixelatePass.plane.updateUniforms({
+				uTex: density.readTarget.texture,
+			});
+		});
+		pixelatePass.on(EVENTS.AFTER_RENDER, () => {
+			pixelated.swap();
+		});
+
+		const colorResPass = new ColorRestrictionPass();
+		colorResPass.on(EVENTS.BEFORE_RENDER, () => {
+			colorResPass.target = pixelated.writeTarget;
+			colorResPass.plane.updateUniforms({
+				uTex: pixelated.readTarget.texture,
+			});
+		});
+		colorResPass.on(EVENTS.AFTER_RENDER, () => {
+			pixelated.swap();
+		});
+
 		const copyPass = new CopyPass();
 		copyPass.on(EVENTS.BEFORE_RENDER, () => {
 			copyPass.plane.updateUniforms({
-				uTex: density.readTarget.texture,
+				uTex: pixelated.readTarget.texture,
 			});
-			renderer.renderer.autoClear = true;
-		});
-
-		copyPass.on(EVENTS.AFTER_RENDER, () => {
-			renderer.renderer.autoClear = false;
 		});
 
 		renderer.addPass(curlPass);
@@ -208,6 +233,8 @@ class App {
 		renderer.addPass(gradientSubtractPass);
 		renderer.addPass(advectVelocityPass);
 		renderer.addPass(advectDensityPass);
+		renderer.addPass(pixelatePass);
+		renderer.addPass(colorResPass);
 		renderer.addPass(copyPass);
 	}
 
@@ -257,6 +284,7 @@ class App {
 			splatPass.target = density.writeTarget;
 			splatPass.plane.updateUniforms({
 				uTex: density.readTarget,
+				uCol: new THREE.Vector3().setScalar(10),
 			})
 
 			renderer.renderSinglePass(splatPass);
@@ -277,6 +305,8 @@ class App {
 		const height = window.innerHeight;
 
 		this._renderer.resize(width, height);
+		this._pixelated.resize(width / 8, height / 8);
+		// this._pixelated.resize(width, height);
 	}
 }
 

@@ -1,4 +1,4 @@
-import { Vec3 } from "./type/common";
+import { Vec3 } from "./types/common";
 
 export function* range(end: number) {
 	let n = 0;
