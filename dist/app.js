@@ -49675,6 +49675,34 @@ version: 1.0.0
 	    return __assign.apply(this, arguments);
 	};
 
+	function __generator(thisArg, body) {
+	    var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g;
+	    return g = { next: verb(0), "throw": verb(1), "return": verb(2) }, typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
+	    function verb(n) { return function (v) { return step([n, v]); }; }
+	    function step(op) {
+	        if (f) throw new TypeError("Generator is already executing.");
+	        while (_) try {
+	            if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
+	            if (y = 0, t) op = [op[0] & 2, t.value];
+	            switch (op[0]) {
+	                case 0: case 1: t = op; break;
+	                case 4: _.label++; return { value: op[1], done: false };
+	                case 5: _.label++; y = op[1]; op = [0]; continue;
+	                case 7: op = _.ops.pop(); _.trys.pop(); continue;
+	                default:
+	                    if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) { _ = 0; continue; }
+	                    if (op[0] === 3 && (!t || (op[1] > t[0] && op[1] < t[3]))) { _.label = op[1]; break; }
+	                    if (op[0] === 6 && _.label < t[1]) { _.label = t[1]; t = op; break; }
+	                    if (t && _.label < t[2]) { _.label = t[2]; _.ops.push(op); break; }
+	                    if (t[2]) _.ops.pop();
+	                    _.trys.pop(); continue;
+	            }
+	            op = body.call(thisArg, _);
+	        } catch (e) { op = [6, e]; y = 0; } finally { f = t = 0; }
+	        if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
+	    }
+	}
+
 	function __values(o) {
 	    var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
 	    if (m) return m.call(o);
@@ -49731,7 +49759,7 @@ version: 1.0.0
 	    Renderer.prototype.resize = function (width, height) {
 	        var renderer = this._renderer;
 	        renderer.setPixelRatio(window.devicePixelRatio);
-	        renderer.setSize(width, height);
+	        renderer.setSize(width, height, false);
 	    };
 	    Renderer.prototype.addPass = function (pass) {
 	        this._passes.push(pass);
@@ -50176,7 +50204,7 @@ version: 1.0.0
 	    }
 	    AdvectionPass.prototype.update = function (ms) {
 	        this.plane.updateUniforms({
-	            uDt: ms,
+	            uDt: ms / 1000,
 	        });
 	    };
 	    return AdvectionPass;
@@ -50348,12 +50376,161 @@ version: 1.0.0
 	    return GradientSubtractPass;
 	}(Pass));
 
+	var colorRestrictionFS = "#version 300 es\nprecision highp float;precision highp sampler2D;\n#define GLSLIFY 1\nuniform sampler2D uTex;uniform sampler2D uPalette;in vec2 vUv;out vec4 fragColor;vec2 getPaletteUV(vec4 col){vec3 mappedColors=floor(col.rgb*15.);float mappedI=mappedColors.r*256.+mappedColors.g*16.+mappedColors.b;return vec2(mod(mappedI,64.),mappedI/64.)/64.;}void main(){vec4 albedo=texture(uTex,vUv);vec2 pUV=getPaletteUV(albedo);vec4 restricted=texture(uPalette,pUV);fragColor=restricted;}"; // eslint-disable-line
+
+	function range(end) {
+	    var n, i;
+	    return __generator(this, function (_a) {
+	        switch (_a.label) {
+	            case 0:
+	                n = 0;
+	                i = 0;
+	                _a.label = 1;
+	            case 1:
+	                if (!(i < end)) return [3 /*break*/, 4];
+	                n++;
+	                return [4 /*yield*/, i];
+	            case 2:
+	                _a.sent();
+	                _a.label = 3;
+	            case 3:
+	                i += 1;
+	                return [3 /*break*/, 1];
+	            case 4: return [2 /*return*/, n];
+	        }
+	    });
+	}
+	function luma(col) {
+	    return col[0] * 0.299 + col[1] * 0.587 + col[2] * 0.114;
+	}
+	function parseColorHex(col) {
+	    col = col.startsWith("#")
+	        ? col.substr(1)
+	        : col;
+	    if (col.length === 3) {
+	        col = "" + col[0] + col[0] + col[1] + col[1] + col[2] + col[2];
+	    }
+	    return [
+	        parseInt(col.substring(0, 2), 16),
+	        parseInt(col.substring(2, 4), 16),
+	        parseInt(col.substring(4, 6), 16),
+	    ];
+	}
+
+	var textures = new Map();
+	// Singleton
+	var PaletteTexture = /** @class */ (function () {
+	    function PaletteTexture() {
+	    }
+	    PaletteTexture.get = function (palette) {
+	        if (textures.has(palette.name)) {
+	            return textures.get(palette.name);
+	        }
+	        else {
+	            var newTex = PaletteTexture._generateFrom(palette);
+	            textures.set(palette.name, newTex);
+	            return newTex;
+	        }
+	    };
+	    PaletteTexture._generateFrom = function (palette) {
+	        var e_1, _a, e_2, _b;
+	        var texWidth = 64;
+	        var texSize = texWidth * texWidth;
+	        var colorData = new Uint8Array(3 * texSize);
+	        var colors = palette.colors.map(parseColorHex);
+	        var diff = function (col1, col2) {
+	            var lumaDiff = luma(col1) - luma(col2);
+	            return lumaDiff * lumaDiff;
+	        };
+	        var rgbOffset = 16;
+	        var rgbOffsetSquare = rgbOffset * rgbOffset;
+	        try {
+	            for (var _c = __values(range(4096)), _d = _c.next(); !_d.done; _d = _c.next()) {
+	                var colorVal = _d.value;
+	                var color = [
+	                    Math.floor(colorVal / rgbOffsetSquare) * 16,
+	                    Math.floor((colorVal % rgbOffsetSquare) / rgbOffset) * 16,
+	                    Math.floor(colorVal % rgbOffset) * 16,
+	                ];
+	                var closestIndex = 0;
+	                var closestDist = Infinity;
+	                try {
+	                    for (var _e = (e_2 = void 0, __values(range(colors.length))), _f = _e.next(); !_f.done; _f = _e.next()) {
+	                        var paletteIndex = _f.value;
+	                        var colorDiff = diff(color, colors[paletteIndex]);
+	                        if (colorDiff < closestDist) {
+	                            closestIndex = paletteIndex;
+	                            closestDist = colorDiff;
+	                        }
+	                    }
+	                }
+	                catch (e_2_1) { e_2 = { error: e_2_1 }; }
+	                finally {
+	                    try {
+	                        if (_f && !_f.done && (_b = _e.return)) _b.call(_e);
+	                    }
+	                    finally { if (e_2) throw e_2.error; }
+	                }
+	                var closestColor = colors[closestIndex];
+	                var dataIndex = 3 * colorVal;
+	                colorData[dataIndex + 0] = closestColor[0]; // R;
+	                colorData[dataIndex + 1] = closestColor[1]; // G;
+	                colorData[dataIndex + 2] = closestColor[2]; // B;
+	            }
+	        }
+	        catch (e_1_1) { e_1 = { error: e_1_1 }; }
+	        finally {
+	            try {
+	                if (_d && !_d.done && (_a = _c.return)) _a.call(_c);
+	            }
+	            finally { if (e_1) throw e_1.error; }
+	        }
+	        var texture = new DataTexture(colorData, texWidth, texWidth, RGBFormat);
+	        texture.flipY = false;
+	        texture.magFilter = NearestFilter;
+	        texture.minFilter = NearestFilter;
+	        texture.generateMipmaps = false;
+	        texture.needsUpdate = true;
+	        return texture;
+	    };
+	    return PaletteTexture;
+	}());
+
+	// https://lospec.com/palette-list/sweetie-16
+	// https://lospec.com/palette-list/nintendo-super-gameboy
+	var SUPER_GAMEBOY = {
+	    name: "nintendo-super-gameboy",
+	    outline: "#331e50",
+	    colors: [
+	        "#331e50",
+	        "#a63725",
+	        "#d68e49",
+	        "#f7e7c6",
+	    ],
+	};
+
+	var ColorRestrictionPass = /** @class */ (function (_super) {
+	    __extends(ColorRestrictionPass, _super);
+	    function ColorRestrictionPass() {
+	        var _this = _super.call(this) || this;
+	        _this.scene = new Scene();
+	        _this.camera = new PerspectiveCamera();
+	        _this.target = null;
+	        _this.plane = new FullscreenPlane({
+	            uPalette: new Uniform(PaletteTexture.get(SUPER_GAMEBOY)),
+	        }, defaultVS, colorRestrictionFS);
+	        _this.scene.add(_this.plane.mesh);
+	        return _this;
+	    }
+	    return ColorRestrictionPass;
+	}(Pass));
+
 	var App = /** @class */ (function () {
 	    function App() {
 	        var _this = this;
 	        this._inputs = [];
 	        this._simRes = 128;
-	        this._dyeRes = 2048;
+	        this._dyeRes = 512;
 	        this._curlStrength = 20;
 	        this._densityDissipation = 0.97;
 	        this._velocityDissipation = 0.98;
@@ -50392,6 +50569,7 @@ version: 1.0.0
 	                splatPass.target = density.writeTarget;
 	                splatPass.plane.updateUniforms({
 	                    uTex: density.readTarget,
+	                    uCol: new Vector3().setScalar(10),
 	                });
 	                renderer.renderSinglePass(splatPass);
 	                velocity.swap();
@@ -50406,6 +50584,8 @@ version: 1.0.0
 	            var width = window.innerWidth;
 	            var height = window.innerHeight;
 	            _this._renderer.resize(width, height);
+	            _this._pixelated.resize(width / 8, height / 8);
+	            // this._pixelated.resize(width, height);
 	        };
 	        var canvasBox = document.querySelector("#app");
 	        this._clock = new Clock(true);
@@ -50423,20 +50603,20 @@ version: 1.0.0
 	        this._density = new FBO(dyeRes, dyeRes, {
 	            type: FloatType,
 	            format: RGBAFormat,
-	            wrapS: ClampToEdgeWrapping,
-	            wrapT: ClampToEdgeWrapping,
+	            wrapS: RepeatWrapping,
+	            wrapT: RepeatWrapping,
 	        });
 	        this._velocity = new FBO(simRes, simRes, {
 	            type: FloatType,
 	            format: RGBAFormat,
-	            wrapS: ClampToEdgeWrapping,
-	            wrapT: ClampToEdgeWrapping,
+	            wrapS: RepeatWrapping,
+	            wrapT: RepeatWrapping,
 	        });
 	        this._pressure = new FBO(simRes, simRes, {
 	            type: FloatType,
 	            format: RGBAFormat,
-	            wrapS: ClampToEdgeWrapping,
-	            wrapT: ClampToEdgeWrapping,
+	            wrapS: RepeatWrapping,
+	            wrapT: RepeatWrapping,
 	        });
 	        this._curl = new WebGLRenderTarget(simRes, simRes, {
 	            type: HalfFloatType,
@@ -50448,6 +50628,12 @@ version: 1.0.0
 	            format: RedFormat,
 	            minFilter: NearestFilter,
 	        });
+	        this._pixelated = new FBO(1, 1, {
+	            type: FloatType,
+	            format: RGBAFormat,
+	            minFilter: NearestFilter,
+	            magFilter: NearestFilter,
+	        });
 	    };
 	    App.prototype._composePass = function () {
 	        var _this = this;
@@ -50457,6 +50643,7 @@ version: 1.0.0
 	        var pressure = this._pressure;
 	        var divergence = this._divergence;
 	        var curl = this._curl;
+	        var pixelated = this._pixelated;
 	        var simRes = this._simRes;
 	        var dyeRes = this._dyeRes;
 	        var lerpExtension = this._renderer.gl.getExtension("OES_texture_float_linear");
@@ -50541,15 +50728,31 @@ version: 1.0.0
 	        advectDensityPass.on(AFTER_RENDER, function () {
 	            density.swap();
 	        });
+	        var pixelatePass = new CopyPass();
+	        pixelatePass.on(BEFORE_RENDER, function () {
+	            pixelatePass.target = pixelated.writeTarget;
+	            pixelatePass.plane.updateUniforms({
+	                uTex: density.readTarget.texture,
+	            });
+	        });
+	        pixelatePass.on(AFTER_RENDER, function () {
+	            pixelated.swap();
+	        });
+	        var colorResPass = new ColorRestrictionPass();
+	        colorResPass.on(BEFORE_RENDER, function () {
+	            colorResPass.target = pixelated.writeTarget;
+	            colorResPass.plane.updateUniforms({
+	                uTex: pixelated.readTarget.texture,
+	            });
+	        });
+	        colorResPass.on(AFTER_RENDER, function () {
+	            pixelated.swap();
+	        });
 	        var copyPass = new CopyPass();
 	        copyPass.on(BEFORE_RENDER, function () {
 	            copyPass.plane.updateUniforms({
-	                uTex: density.readTarget.texture,
+	                uTex: pixelated.readTarget.texture,
 	            });
-	            renderer.renderer.autoClear = true;
-	        });
-	        copyPass.on(AFTER_RENDER, function () {
-	            renderer.renderer.autoClear = false;
 	        });
 	        renderer.addPass(curlPass);
 	        renderer.addPass(vorticityPass);
@@ -50558,6 +50761,8 @@ version: 1.0.0
 	        renderer.addPass(gradientSubtractPass);
 	        renderer.addPass(advectVelocityPass);
 	        renderer.addPass(advectDensityPass);
+	        renderer.addPass(pixelatePass);
+	        renderer.addPass(colorResPass);
 	        renderer.addPass(copyPass);
 	    };
 	    return App;
