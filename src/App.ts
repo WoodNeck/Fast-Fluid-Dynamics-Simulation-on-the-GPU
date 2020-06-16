@@ -7,11 +7,13 @@ import CopyPass from "./passes/CopyPass";
 import SplatPass from "./passes/SplatPass";
 import DivergencePass from "./passes/DivergencePass";
 import CurlPass from "./passes/CurlPass";
-import * as EVENTS from "./consts/events";
 import VorticityPass from "./passes/VorticityPass";
 import PressurePass from "./passes/PressurePass";
 import GradientSubtractPass from "./passes/GradientSubtractPass";
 import ColorRestrictionPass from "./passes/ColorRestrictionPass";
+import PaletteTexture from "~/objects/PaletteTexture";
+import * as EVENTS from "./consts/events";
+import * as COLORS from "~/consts/colors";
 
 class App {
 	public curlStrength = 60;
@@ -31,6 +33,7 @@ class App {
 	private _divergence: THREE.WebGLRenderTarget;
 
 	private _splatPass: SplatPass;
+	private _colorResPass: ColorRestrictionPass;
 	private _inputs: THREE.Vector4[] = [];
 	private _lastPos: THREE.Vector2;
 
@@ -224,6 +227,7 @@ class App {
 		colorResPass.on(EVENTS.AFTER_RENDER, () => {
 			pixelated.swap();
 		});
+		this._colorResPass = colorResPass;
 
 		const copyPass = new CopyPass();
 		copyPass.on(EVENTS.BEFORE_RENDER, () => {
@@ -318,12 +322,27 @@ class App {
 	private _setupControls() {
 		// @ts-ignore
 		const gui = new dat.GUI();
+		const color = { palette: "SUPER_GAMEBOY" };
+		const palettes = [
+			"SWEETIE16",
+			"ENDESGA16",
+			"ICE_CREAM_GB",
+			"INDECISION",
+			"ISLAND_JOY_16",
+			"NES",
+			"SUPER_GAMEBOY"
+		];
 
 		gui.add(this, "curlStrength", 0, 100);
 		gui.add(this, "radius", -5, 0);
 		gui.add(this, "densityDissipation", 0, 1);
 		gui.add(this, "velocityDissipation", 0, 1);
 		gui.add(this, "pressureDissipation", 0, 1);
+		gui.add(color, "palette", palettes).onChange(() => {
+			this._colorResPass.plane.updateUniforms({
+				uPalette: PaletteTexture.get(COLORS[color.palette]),
+			});
+		});
 	}
 }
 
