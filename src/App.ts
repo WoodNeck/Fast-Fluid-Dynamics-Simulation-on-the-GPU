@@ -14,6 +14,12 @@ import GradientSubtractPass from "./passes/GradientSubtractPass";
 import ColorRestrictionPass from "./passes/ColorRestrictionPass";
 
 class App {
+	public curlStrength = 20;
+	public radius = -3;
+	public densityDissipation = 0.97;
+	public velocityDissipation = 0.98;
+	public pressureDissipation = 0.8;
+
 	private _renderer: Renderer;
 	private _clock: THREE.Clock;
 
@@ -31,10 +37,6 @@ class App {
 	private _simRes = 128;
 	private _dyeRes = 512;
 
-	private _curlStrength = 20;
-	private _densityDissipation = 0.97;
-	private _velocityDissipation = 0.98;
-	private _pressureDissipation = 0.8;
 	private _pressureIterations = 3;
 
 	constructor() {
@@ -46,6 +48,7 @@ class App {
 		this._composeFBO();
 		this._onResize();
 		this._composePass();
+		this._setupControls();
 
 		window.addEventListener("mousemove", this._onMouseMove);
 		window.addEventListener("resize", this._onResize);
@@ -116,11 +119,12 @@ class App {
 			});
 		});
 
-		const vorticityPass = new VorticityPass(simRes, this._curlStrength);
+		const vorticityPass = new VorticityPass(simRes);
 		vorticityPass.on(EVENTS.BEFORE_RENDER, () => {
 			vorticityPass.target = velocity.writeTarget;
 			vorticityPass.plane.updateUniforms({
 				uVelocity: velocity.readTarget.texture,
+				uCurl: this.curlStrength,
 				uCurlTex: curl.texture,
 			});
 		});
@@ -136,7 +140,7 @@ class App {
 			});
 		});
 
-		const clearPass = new ClearPass(this._pressureDissipation);
+		const clearPass = new ClearPass(this.pressureDissipation);
 		clearPass.on(EVENTS.BEFORE_RENDER, () => {
 			clearPass.target = pressure.writeTarget;
 			clearPass.plane.updateUniforms({
@@ -173,24 +177,26 @@ class App {
 			velocity.swap();
 		});
 
-		const advectVelocityPass = new AdvectionPass(Boolean(lerpExtension), simRes, this._velocityDissipation);
+		const advectVelocityPass = new AdvectionPass(Boolean(lerpExtension), simRes);
 		advectVelocityPass.on(EVENTS.BEFORE_RENDER, () => {
 			advectVelocityPass.target = velocity.writeTarget;
 			advectVelocityPass.plane.updateUniforms({
 				uVelocity: velocity.readTarget.texture,
 				uQty: velocity.readTarget.texture,
+				uDissipation: this.velocityDissipation,
 			});
 		});
 		advectVelocityPass.on(EVENTS.AFTER_RENDER, () => {
 			velocity.swap();
 		});
 
-		const advectDensityPass = new AdvectionPass(Boolean(lerpExtension), simRes, this._densityDissipation);
+		const advectDensityPass = new AdvectionPass(Boolean(lerpExtension), simRes);
 		advectDensityPass.on(EVENTS.BEFORE_RENDER, () => {
 			advectDensityPass.target = density.writeTarget;
 			advectDensityPass.plane.updateUniforms({
 				uVelocity: velocity.readTarget.texture,
 				uQty: density.readTarget.texture,
+				uDissipation: this.densityDissipation,
 			});
 		});
 		advectDensityPass.on(EVENTS.AFTER_RENDER, () => {
@@ -276,7 +282,7 @@ class App {
 				uAspect: renderer.aspect,
 				uPoint: new THREE.Vector2(input.x, input.y),
 				uCol: new THREE.Vector3(input.z, input.w, 1),
-				uInvRadius: 1000,
+				uInvRadius: 1 / Math.pow(10, this.radius),
 			});
 
 			renderer.renderSinglePass(splatPass);
@@ -307,6 +313,17 @@ class App {
 		this._renderer.resize(width, height);
 		this._pixelated.resize(width / 8, height / 8);
 		// this._pixelated.resize(width, height);
+	}
+
+	private _setupControls() {
+		// @ts-ignore
+		const gui = new dat.GUI();
+
+		gui.add(this, "curlStrength", 0, 100);
+		gui.add(this, "radius", -5, 0);
+		gui.add(this, "densityDissipation", 0, 1);
+		gui.add(this, "velocityDissipation", 0, 1);
+		gui.add(this, "pressureDissipation", 0, 1);
 	}
 }
 

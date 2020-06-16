@@ -9,7 +9,7 @@ import FullscreenPlane from "~/objects/FullscreenPlane";
 class AdvectionPass extends Pass {
 	public plane: FullscreenPlane;
 
-	constructor(extensionEnabled: boolean, res: number, dissipation: number) {
+	constructor(extensionEnabled: boolean, res: number) {
 		super();
 		this.scene = new THREE.Scene();
 		this.camera = new THREE.PerspectiveCamera();
@@ -24,7 +24,7 @@ class AdvectionPass extends Pass {
 			uDt: new THREE.Uniform(0),
 			uGrid: new THREE.Uniform(res),
 			uInvGrid: new THREE.Uniform(1 / res),
-			uDissipation: new THREE.Uniform(dissipation),
+			uDissipation: new THREE.Uniform(0),
 			uVelocity: null,
 			uQty: null,
 		}, vs, fs);

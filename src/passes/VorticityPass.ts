@@ -8,7 +8,7 @@ import FullscreenPlane from "~/objects/FullscreenPlane";
 class VorticityPass extends Pass {
 	public plane: FullscreenPlane;
 
-	constructor(res: number, curlStrength: number) {
+	constructor(res: number) {
 		super();
 		this.scene = new THREE.Scene();
 		this.camera = new THREE.PerspectiveCamera();
@@ -16,7 +16,7 @@ class VorticityPass extends Pass {
 
 		this.plane = new FullscreenPlane({
 			uTexelSize: new THREE.Uniform(new THREE.Vector2(1 / res, 1 / res)),
-			uCurl: new THREE.Uniform(curlStrength),
+			uCurl: new THREE.Uniform(0),
 			uDt: new THREE.Uniform(0),
 			uVelocity: null,
 			uCurlTex: null,
