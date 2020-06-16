@@ -50182,7 +50182,7 @@ version: 1.0.0
 
 	var AdvectionPass = /** @class */ (function (_super) {
 	    __extends(AdvectionPass, _super);
-	    function AdvectionPass(extensionEnabled, res, dissipation) {
+	    function AdvectionPass(extensionEnabled, res) {
 	        var _this = _super.call(this) || this;
 	        _this.scene = new Scene();
 	        _this.camera = new PerspectiveCamera();
@@ -50195,7 +50195,7 @@ version: 1.0.0
 	            uDt: new Uniform(0),
 	            uGrid: new Uniform(res),
 	            uInvGrid: new Uniform(1 / res),
-	            uDissipation: new Uniform(dissipation),
+	            uDissipation: new Uniform(0),
 	            uVelocity: null,
 	            uQty: null,
 	        }, vs, fs);
@@ -50313,14 +50313,14 @@ version: 1.0.0
 
 	var VorticityPass = /** @class */ (function (_super) {
 	    __extends(VorticityPass, _super);
-	    function VorticityPass(res, curlStrength) {
+	    function VorticityPass(res) {
 	        var _this = _super.call(this) || this;
 	        _this.scene = new Scene();
 	        _this.camera = new PerspectiveCamera();
 	        _this.target = null;
 	        _this.plane = new FullscreenPlane({
 	            uTexelSize: new Uniform(new Vector2(1 / res, 1 / res)),
-	            uCurl: new Uniform(curlStrength),
+	            uCurl: new Uniform(0),
 	            uDt: new Uniform(0),
 	            uVelocity: null,
 	            uCurlTex: null,
@@ -50528,13 +50528,14 @@ version: 1.0.0
 	var App = /** @class */ (function () {
 	    function App() {
 	        var _this = this;
+	        this.curlStrength = 20;
+	        this.radius = -3;
+	        this.densityDissipation = 0.97;
+	        this.velocityDissipation = 0.98;
+	        this.pressureDissipation = 0.8;
 	        this._inputs = [];
 	        this._simRes = 128;
 	        this._dyeRes = 512;
-	        this._curlStrength = 20;
-	        this._densityDissipation = 0.97;
-	        this._velocityDissipation = 0.98;
-	        this._pressureDissipation = 0.8;
 	        this._pressureIterations = 3;
 	        this._onMouseMove = function (e) {
 	            var x = e.pageX;
@@ -50563,7 +50564,7 @@ version: 1.0.0
 	                    uAspect: renderer.aspect,
 	                    uPoint: new Vector2(input.x, input.y),
 	                    uCol: new Vector3(input.z, input.w, 1),
-	                    uInvRadius: 1000,
+	                    uInvRadius: 1 / Math.pow(10, _this.radius),
 	                });
 	                renderer.renderSinglePass(splatPass);
 	                splatPass.target = density.writeTarget;
@@ -50593,6 +50594,7 @@ version: 1.0.0
 	        this._composeFBO();
 	        this._onResize();
 	        this._composePass();
+	        this._setupControls();
 	        window.addEventListener("mousemove", this._onMouseMove);
 	        window.addEventListener("resize", this._onResize);
 	        requestAnimationFrame(this._render);
@@ -50655,11 +50657,12 @@ version: 1.0.0
 	                uVelocity: velocity.readTarget.texture,
 	            });
 	        });
-	        var vorticityPass = new VorticityPass(simRes, this._curlStrength);
+	        var vorticityPass = new VorticityPass(simRes);
 	        vorticityPass.on(BEFORE_RENDER, function () {
 	            vorticityPass.target = velocity.writeTarget;
 	            vorticityPass.plane.updateUniforms({
 	                uVelocity: velocity.readTarget.texture,
+	                uCurl: _this.curlStrength,
 	                uCurlTex: curl.texture,
 	            });
 	        });
@@ -50673,7 +50676,7 @@ version: 1.0.0
 	                uVelocity: velocity.readTarget.texture,
 	            });
 	        });
-	        var clearPass = new ClearPass(this._pressureDissipation);
+	        var clearPass = new ClearPass(this.pressureDissipation);
 	        clearPass.on(BEFORE_RENDER, function () {
 	            clearPass.target = pressure.writeTarget;
 	            clearPass.plane.updateUniforms({
@@ -50706,23 +50709,25 @@ version: 1.0.0
 	        gradientSubtractPass.on(AFTER_RENDER, function () {
 	            velocity.swap();
 	        });
-	        var advectVelocityPass = new AdvectionPass(Boolean(lerpExtension), simRes, this._velocityDissipation);
+	        var advectVelocityPass = new AdvectionPass(Boolean(lerpExtension), simRes);
 	        advectVelocityPass.on(BEFORE_RENDER, function () {
 	            advectVelocityPass.target = velocity.writeTarget;
 	            advectVelocityPass.plane.updateUniforms({
 	                uVelocity: velocity.readTarget.texture,
 	                uQty: velocity.readTarget.texture,
+	                uDissipation: _this.velocityDissipation,
 	            });
 	        });
 	        advectVelocityPass.on(AFTER_RENDER, function () {
 	            velocity.swap();
 	        });
-	        var advectDensityPass = new AdvectionPass(Boolean(lerpExtension), simRes, this._densityDissipation);
+	        var advectDensityPass = new AdvectionPass(Boolean(lerpExtension), simRes);
 	        advectDensityPass.on(BEFORE_RENDER, function () {
 	            advectDensityPass.target = density.writeTarget;
 	            advectDensityPass.plane.updateUniforms({
 	                uVelocity: velocity.readTarget.texture,
 	                uQty: density.readTarget.texture,
+	                uDissipation: _this.densityDissipation,
 	            });
 	        });
 	        advectDensityPass.on(AFTER_RENDER, function () {
@@ -50764,6 +50769,15 @@ version: 1.0.0
 	        renderer.addPass(pixelatePass);
 	        renderer.addPass(colorResPass);
 	        renderer.addPass(copyPass);
+	    };
+	    App.prototype._setupControls = function () {
+	        // @ts-ignore
+	        var gui = new dat.GUI();
+	        gui.add(this, "curlStrength", 0, 100);
+	        gui.add(this, "radius", -5, 0);
+	        gui.add(this, "densityDissipation", 0, 1);
+	        gui.add(this, "velocityDissipation", 0, 1);
+	        gui.add(this, "pressureDissipation", 0, 1);
 	    };
 	    return App;
 	}());
