@@ -16,7 +16,7 @@ import ColorRestrictionPass from "./passes/ColorRestrictionPass";
 class App {
 	public curlStrength = 60;
 	public radius = -3;
-	public densityDissipation = 0.97;
+	public densityDissipation = 0.93;
 	public velocityDissipation = 0.98;
 	public pressureDissipation = 0.8;
 
