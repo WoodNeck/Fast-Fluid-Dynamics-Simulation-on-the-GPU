@@ -50528,7 +50528,7 @@ version: 1.0.0
 	var App = /** @class */ (function () {
 	    function App() {
 	        var _this = this;
-	        this.curlStrength = 20;
+	        this.curlStrength = 60;
 	        this.radius = -3;
 	        this.densityDissipation = 0.97;
 	        this.velocityDissipation = 0.98;
