@@ -14,7 +14,7 @@ import GradientSubtractPass from "./passes/GradientSubtractPass";
 import ColorRestrictionPass from "./passes/ColorRestrictionPass";
 
 class App {
-	public curlStrength = 20;
+	public curlStrength = 60;
 	public radius = -3;
 	public densityDissipation = 0.97;
 	public velocityDissipation = 0.98;
