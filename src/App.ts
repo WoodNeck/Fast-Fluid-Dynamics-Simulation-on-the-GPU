@@ -60,6 +60,7 @@ class App {
 		this._updatePalette();
 
 		window.addEventListener("mousemove", this._onMouseMove);
+		window.addEventListener("touchmove", this._onTouchMove);
 		window.addEventListener("resize", this._onResize);
 		requestAnimationFrame(this._render);
 	}
@@ -255,9 +256,20 @@ class App {
 	}
 
 	private _onMouseMove = (e: MouseEvent) => {
-		const x = e.pageX;
-		const y = e.pageY;
+		const x = e.clientX;
+		const y = e.clientY;
 
+		this._processInput(x, y);
+	}
+
+	private _onTouchMove = (e: TouchEvent) => {
+		const x = e.touches[0].clientX;
+		const y = e.touches[0].clientY;
+
+		this._processInput(x, y);
+	}
+
+	private _processInput(x: number, y: number) {
 		if (!this._lastPos) {
 			this._lastPos = new THREE.Vector2(x, y);
 			return;
