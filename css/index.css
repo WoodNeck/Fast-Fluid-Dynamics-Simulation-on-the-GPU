@@ -2,17 +2,4 @@ html, body, #app {
 	margin: 0;
 	width: 100%;
 	height: 100%;
-	overscroll-behavior: none;
-}
-
-body, #app {
-	position: absolute;
-	top: 0px;
-	overflow-y: hidden;
-}
-body {
-	z-index: 1;
-}
-#app {
-	z-index: 2;
 }
