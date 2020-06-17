@@ -11,9 +11,7 @@ import VorticityPass from "./passes/VorticityPass";
 import PressurePass from "./passes/PressurePass";
 import GradientSubtractPass from "./passes/GradientSubtractPass";
 import ColorRestrictionPass from "./passes/ColorRestrictionPass";
-import PaletteTexture from "~/objects/PaletteTexture";
 import * as EVENTS from "./consts/events";
-import * as COLORS from "~/consts/colors";
 
 class App {
 	public curlStrength = 60;
@@ -21,6 +19,13 @@ class App {
 	public densityDissipation = 0.93;
 	public velocityDissipation = 0.98;
 	public pressureDissipation = 0.8;
+	public edge0 = 0.125;
+	public edge1 = 0.75;
+	public edge2 = 4.5;
+	public color0 = "#f7e7c6";
+	public color1 = "#d68e49";
+	public color2 = "#a63725";
+	public color3 = "#331e50";
 
 	private _renderer: Renderer;
 	private _clock: THREE.Clock;
@@ -52,6 +57,7 @@ class App {
 		this._onResize();
 		this._composePass();
 		this._setupControls();
+		this._updatePalette();
 
 		window.addEventListener("mousemove", this._onMouseMove);
 		window.addEventListener("resize", this._onResize);
@@ -282,7 +288,7 @@ class App {
 		this._inputs.reverse().forEach(input => {
 			splatPass.target = velocity.writeTarget;
 			splatPass.plane.updateUniforms({
-				uTex: velocity.readTarget,
+				uTex: velocity.readTarget.texture,
 				uAspect: renderer.aspect,
 				uPoint: new THREE.Vector2(input.x, input.y),
 				uCol: new THREE.Vector3(input.z, input.w, 1),
@@ -293,7 +299,7 @@ class App {
 
 			splatPass.target = density.writeTarget;
 			splatPass.plane.updateUniforms({
-				uTex: density.readTarget,
+				uTex: density.readTarget.texture,
 				uCol: new THREE.Vector3().setScalar(10),
 			})
 
@@ -316,33 +322,46 @@ class App {
 
 		this._renderer.resize(width, height);
 		this._pixelated.resize(width / 8, height / 8);
-		// this._pixelated.resize(width, height);
 	}
 
 	private _setupControls() {
 		// @ts-ignore
 		const gui = new dat.GUI();
-		const color = { palette: "SUPER_GAMEBOY" };
-		const palettes = [
-			"SWEETIE16",
-			"ENDESGA16",
-			"ICE_CREAM_GB",
-			"INDECISION",
-			"ISLAND_JOY_16",
-			"NES",
-			"SUPER_GAMEBOY"
-		];
 
 		gui.add(this, "curlStrength", 0, 100);
 		gui.add(this, "radius", -5, 0);
 		gui.add(this, "densityDissipation", 0, 1);
 		gui.add(this, "velocityDissipation", 0, 1);
 		gui.add(this, "pressureDissipation", 0, 1);
-		gui.add(color, "palette", palettes).onChange(() => {
-			this._colorResPass.plane.updateUniforms({
-				uPalette: PaletteTexture.get(COLORS[color.palette]),
-			});
+
+		const f1 = gui.addFolder("color");
+		f1.add(this, "edge0", 0, 5).onChange(this._updatePalette);
+		f1.add(this, "edge1", 0, 5).onChange(this._updatePalette);
+		f1.add(this, "edge2", 0, 5).onChange(this._updatePalette);
+		f1.addColor(this, "color0").onChange(this._updatePalette);
+		f1.addColor(this, "color1").onChange(this._updatePalette);
+		f1.addColor(this, "color2").onChange(this._updatePalette);
+		f1.addColor(this, "color3").onChange(this._updatePalette);
+		f1.open();
+	}
+
+	private _updatePalette = () => {
+		const palette = [
+			new THREE.Color(this.color0),
+			new THREE.Color(this.color1),
+			new THREE.Color(this.color2),
+			new THREE.Color(this.color3),
+		].map(col => {
+			const vec4 = new THREE.Vector4().fromArray(col.toArray());
+			vec4.w = 1;
+			return vec4;
 		});
+		this._colorResPass.plane.updateUniforms({
+			uEdge0: this.edge0,
+			uEdge1: this.edge1,
+			uEdge2: this.edge2,
+			uPalette: palette,
+		})
 	}
 }
 

@@ -3,23 +3,22 @@ precision highp float;
 precision highp sampler2D;
 
 uniform sampler2D uTex;
-uniform sampler2D uPalette;
+
+uniform float uEdge0;
+uniform float uEdge1;
+uniform float uEdge2;
+
+uniform vec4[4] uPalette;
 
 in vec2 vUv;
 out vec4 fragColor;
 
-vec2 getPaletteUV(vec4 col) {
-	// vec3 mappedColors = floor(col.rgb * 15.);
-	// float mappedI = mappedColors.r * 256. + mappedColors.g * 16. + mappedColors.b;
-	// return vec2(mod(mappedI, 64.), mappedI / 64.) / 64.;
-	return vec2(col.r, col.r);
-}
-
 void main() {
 	vec4 albedo = texture(uTex, vUv);
-  vec2 pUV = getPaletteUV(albedo);
-	pUV = floor(pUV * 5.) / 5.;
+	int edge0 = int(step(albedo.r * .5, uEdge0));
+	int edge1 = int(step(albedo.r * .5, uEdge1));
+	int edge2 = int(step(albedo.r * .5, uEdge2));
+	int colIdx = edge0 + edge1 + edge2;
 
-	vec4 restricted = texture(uPalette, pUV);
-	fragColor = restricted;
+	fragColor = uPalette[colIdx];
 }

@@ -17,7 +17,15 @@ class ColorRestrictionPass extends Pass {
 		this.target = null;
 
 		this.plane = new FullscreenPlane({
-			uPalette: new THREE.Uniform(PaletteTexture.get(COLORS.SUPER_GAMEBOY)),
+			uEdge0: new THREE.Uniform(0),
+			uEdge1: new THREE.Uniform(0),
+			uEdge2: new THREE.Uniform(0),
+			uPalette: new THREE.Uniform([
+				new THREE.Vector4(),
+				new THREE.Vector4(),
+				new THREE.Vector4(),
+				new THREE.Vector4(),
+			])
 		}, defaultVS, colorRestrictionFS);
 
 		this.scene.add(this.plane.mesh);
