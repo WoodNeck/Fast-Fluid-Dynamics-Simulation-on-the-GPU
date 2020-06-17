@@ -49675,34 +49675,6 @@ version: 1.0.0
 	    return __assign.apply(this, arguments);
 	};
 
-	function __generator(thisArg, body) {
-	    var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g;
-	    return g = { next: verb(0), "throw": verb(1), "return": verb(2) }, typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
-	    function verb(n) { return function (v) { return step([n, v]); }; }
-	    function step(op) {
-	        if (f) throw new TypeError("Generator is already executing.");
-	        while (_) try {
-	            if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
-	            if (y = 0, t) op = [op[0] & 2, t.value];
-	            switch (op[0]) {
-	                case 0: case 1: t = op; break;
-	                case 4: _.label++; return { value: op[1], done: false };
-	                case 5: _.label++; y = op[1]; op = [0]; continue;
-	                case 7: op = _.ops.pop(); _.trys.pop(); continue;
-	                default:
-	                    if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) { _ = 0; continue; }
-	                    if (op[0] === 3 && (!t || (op[1] > t[0] && op[1] < t[3]))) { _.label = op[1]; break; }
-	                    if (op[0] === 6 && _.label < t[1]) { _.label = t[1]; t = op; break; }
-	                    if (t && _.label < t[2]) { _.label = t[2]; _.ops.push(op); break; }
-	                    if (t[2]) _.ops.pop();
-	                    _.trys.pop(); continue;
-	            }
-	            op = body.call(thisArg, _);
-	        } catch (e) { op = [6, e]; y = 0; } finally { f = t = 0; }
-	        if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
-	    }
-	}
-
 	function __values(o) {
 	    var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
 	    if (m) return m.call(o);
@@ -50376,326 +50348,7 @@ version: 1.0.0
 	    return GradientSubtractPass;
 	}(Pass));
 
-	var colorRestrictionFS = "#version 300 es\nprecision highp float;precision highp sampler2D;\n#define GLSLIFY 1\nuniform sampler2D uTex;uniform sampler2D uPalette;in vec2 vUv;out vec4 fragColor;vec2 getPaletteUV(vec4 col){return vec2(col.r,col.r);}void main(){vec4 albedo=texture(uTex,vUv);vec2 pUV=getPaletteUV(albedo);pUV=floor(pUV*5.)/5.;vec4 restricted=texture(uPalette,pUV);fragColor=restricted;}"; // eslint-disable-line
-
-	function range(end) {
-	    var n, i;
-	    return __generator(this, function (_a) {
-	        switch (_a.label) {
-	            case 0:
-	                n = 0;
-	                i = 0;
-	                _a.label = 1;
-	            case 1:
-	                if (!(i < end)) return [3 /*break*/, 4];
-	                n++;
-	                return [4 /*yield*/, i];
-	            case 2:
-	                _a.sent();
-	                _a.label = 3;
-	            case 3:
-	                i += 1;
-	                return [3 /*break*/, 1];
-	            case 4: return [2 /*return*/, n];
-	        }
-	    });
-	}
-	function luma(col) {
-	    return col[0] * 0.299 + col[1] * 0.587 + col[2] * 0.114;
-	}
-	function parseColorHex(col) {
-	    col = col.startsWith("#")
-	        ? col.substr(1)
-	        : col;
-	    if (col.length === 3) {
-	        col = "" + col[0] + col[0] + col[1] + col[1] + col[2] + col[2];
-	    }
-	    return [
-	        parseInt(col.substring(0, 2), 16),
-	        parseInt(col.substring(2, 4), 16),
-	        parseInt(col.substring(4, 6), 16),
-	    ];
-	}
-
-	var textures = new Map();
-	// Singleton
-	var PaletteTexture = /** @class */ (function () {
-	    function PaletteTexture() {
-	    }
-	    PaletteTexture.get = function (palette) {
-	        if (textures.has(palette.name)) {
-	            return textures.get(palette.name);
-	        }
-	        else {
-	            var newTex = PaletteTexture._generateFrom(palette);
-	            textures.set(palette.name, newTex);
-	            return newTex;
-	        }
-	    };
-	    PaletteTexture._generateFrom = function (palette) {
-	        var e_1, _a, e_2, _b;
-	        var texWidth = 64;
-	        var texSize = texWidth * texWidth;
-	        var colorData = new Uint8Array(3 * texSize);
-	        var colors = palette.colors.map(parseColorHex);
-	        var diff = function (col1, col2) {
-	            var lumaDiff = luma(col1) - luma(col2);
-	            return lumaDiff * lumaDiff;
-	        };
-	        var rgbOffset = 16;
-	        var rgbOffsetSquare = rgbOffset * rgbOffset;
-	        try {
-	            for (var _c = __values(range(4096)), _d = _c.next(); !_d.done; _d = _c.next()) {
-	                var colorVal = _d.value;
-	                var color = [
-	                    Math.floor(colorVal / rgbOffsetSquare) * 16,
-	                    Math.floor((colorVal % rgbOffsetSquare) / rgbOffset) * 16,
-	                    Math.floor(colorVal % rgbOffset) * 16,
-	                ];
-	                var closestIndex = 0;
-	                var closestDist = Infinity;
-	                try {
-	                    for (var _e = (e_2 = void 0, __values(range(colors.length))), _f = _e.next(); !_f.done; _f = _e.next()) {
-	                        var paletteIndex = _f.value;
-	                        var colorDiff = diff(color, colors[paletteIndex]);
-	                        if (colorDiff < closestDist) {
-	                            closestIndex = paletteIndex;
-	                            closestDist = colorDiff;
-	                        }
-	                    }
-	                }
-	                catch (e_2_1) { e_2 = { error: e_2_1 }; }
-	                finally {
-	                    try {
-	                        if (_f && !_f.done && (_b = _e.return)) _b.call(_e);
-	                    }
-	                    finally { if (e_2) throw e_2.error; }
-	                }
-	                var closestColor = colors[closestIndex];
-	                var dataIndex = 3 * colorVal;
-	                colorData[dataIndex + 0] = closestColor[0]; // R;
-	                colorData[dataIndex + 1] = closestColor[1]; // G;
-	                colorData[dataIndex + 2] = closestColor[2]; // B;
-	            }
-	        }
-	        catch (e_1_1) { e_1 = { error: e_1_1 }; }
-	        finally {
-	            try {
-	                if (_d && !_d.done && (_a = _c.return)) _a.call(_c);
-	            }
-	            finally { if (e_1) throw e_1.error; }
-	        }
-	        var texture = new DataTexture(colorData, texWidth, texWidth, RGBFormat);
-	        texture.flipY = false;
-	        texture.magFilter = NearestFilter;
-	        texture.minFilter = NearestFilter;
-	        texture.generateMipmaps = false;
-	        texture.needsUpdate = true;
-	        return texture;
-	    };
-	    return PaletteTexture;
-	}());
-
-	// https://lospec.com/palette-list/sweetie-16
-	var SWEETIE16 = {
-	    name: "sweetie-16",
-	    outline: "#1a1c2c",
-	    colors: [
-	        "#1a1c2c",
-	        "#5d275d",
-	        "#b13e53",
-	        "#ef7d57",
-	        "#ffcd75",
-	        "#a7f070",
-	        "#38b764",
-	        "#257179",
-	        "#29366f",
-	        "#3b5dc9",
-	        "#41a6f6",
-	        "#73eff7",
-	        "#f4f4f4",
-	        "#94b0c2",
-	        "#566c86",
-	        "#333c57",
-	    ],
-	};
-	// https://lospec.com/palette-list/endesga-16
-	var ENDESGA16 = {
-	    name: "endesga-16",
-	    outline: "#0484d1",
-	    colors: [
-	        "#e4a672",
-	        "#b86f50",
-	        "#743f39",
-	        "#3f2832",
-	        "#9e2835",
-	        "#e53b44",
-	        "#fb922b",
-	        "#ffe762",
-	        "#63c64d",
-	        "#327345",
-	        "#193d3f",
-	        "#4f6781",
-	        "#afbfd2",
-	        "#ffffff",
-	        "#2ce8f4",
-	        "#0484d1",
-	    ],
-	};
-	// https://lospec.com/palette-list/ice-cream-gb
-	var ICE_CREAM_GB = {
-	    name: "ice-cream-gb",
-	    outline: "#3e1f2c",
-	    colors: [
-	        "#7c3f58",
-	        "#eb6b6f",
-	        "#f9a875",
-	        "#fff6d3",
-	    ],
-	};
-	// https://lospec.com/palette-list/indecision
-	var INDECISION = {
-	    name: "indecision",
-	    outline: "#2c1b2e",
-	    colors: [
-	        "#fff4e0",
-	        "#8fcccb",
-	        "#449489",
-	        "#285763",
-	        "#2f2b5c",
-	        "#4b3b9c",
-	        "#457cd6",
-	        "#f2b63d",
-	        "#d46e33",
-	        "#e34262",
-	        "#94353d",
-	        "#57253b",
-	        "#9c656c",
-	        "#d1b48c",
-	        "#b4ba47",
-	        "#6d8c32",
-	        "#2c1b2e",
-	    ],
-	};
-	// https://lospec.com/palette-list/island-joy-16
-	var ISLAND_JOY_16 = {
-	    name: "island-joy-16",
-	    outline: "#393457",
-	    colors: [
-	        "#ffffff",
-	        "#6df7c1",
-	        "#11adc1",
-	        "#606c81",
-	        "#393457",
-	        "#1e8875",
-	        "#5bb361",
-	        "#a1e55a",
-	        "#f7e476",
-	        "#f99252",
-	        "#cb4d68",
-	        "#6a3771",
-	        "#c92464",
-	        "#f48cb6",
-	        "#f7b69e",
-	        "#9b9c82",
-	    ],
-	};
-	// https://lospec.com/palette-list/nintendo-entertainment-system
-	var NES = {
-	    name: "nes",
-	    outline: "#000000",
-	    colors: [
-	        "#000000",
-	        "#fcfcfc",
-	        "#f8f8f8",
-	        "#bcbcbc",
-	        "#7c7c7c",
-	        "#a4e4fc",
-	        "#3cbcfc",
-	        "#0078f8",
-	        "#0000fc",
-	        "#b8b8f8",
-	        "#6888fc",
-	        "#0058f8",
-	        "#0000bc",
-	        "#d8b8f8",
-	        "#9878f8",
-	        "#6844fc",
-	        "#4428bc",
-	        "#f8b8f8",
-	        "#f878f8",
-	        "#d800cc",
-	        "#940084",
-	        "#f8a4c0",
-	        "#f85898",
-	        "#e40058",
-	        "#a80020",
-	        "#f0d0b0",
-	        "#f87858",
-	        "#f83800",
-	        "#a81000",
-	        "#fce0a8",
-	        "#fca044",
-	        "#e45c10",
-	        "#881400",
-	        "#f8d878",
-	        "#f8b800",
-	        "#ac7c00",
-	        "#503000",
-	        "#d8f878",
-	        "#b8f818",
-	        "#00b800",
-	        "#007800",
-	        "#b8f8b8",
-	        "#58d854",
-	        "#00a800",
-	        "#006800",
-	        "#b8f8d8",
-	        "#58f898",
-	        "#00a844",
-	        "#005800",
-	        "#00fcfc",
-	        "#00e8d8",
-	        "#008888",
-	        "#004058",
-	        "#f8d8f8",
-	        "#787878",
-	    ],
-	};
-	// https://lospec.com/palette-list/nintendo-super-gameboy
-	var SUPER_GAMEBOY = {
-	    name: "nintendo-super-gameboy",
-	    outline: "#331e50",
-	    colors: [
-	        "#331e50",
-	        "#a63725",
-	        "#d68e49",
-	        "#f7e7c6",
-	    ],
-	};
-	var STONE_BRICK = {
-	    name: "stone-brick",
-	    outline: "#393121",
-	    colors: [
-	        "#7b8452",
-	        "#6b6b42",
-	        "#9da673",
-	        "#634a29",
-	        "#423931",
-	    ],
-	};
-
-	var COLORS = {
-		__proto__: null,
-		SWEETIE16: SWEETIE16,
-		ENDESGA16: ENDESGA16,
-		ICE_CREAM_GB: ICE_CREAM_GB,
-		INDECISION: INDECISION,
-		ISLAND_JOY_16: ISLAND_JOY_16,
-		NES: NES,
-		SUPER_GAMEBOY: SUPER_GAMEBOY,
-		STONE_BRICK: STONE_BRICK
-	};
+	var colorRestrictionFS = "#version 300 es\nprecision highp float;precision highp sampler2D;\n#define GLSLIFY 1\nuniform sampler2D uTex;uniform float uEdge0;uniform float uEdge1;uniform float uEdge2;uniform vec4[4]uPalette;in vec2 vUv;out vec4 fragColor;void main(){vec4 albedo=texture(uTex,vUv);int edge0=int(step(albedo.r*.5,uEdge0));int edge1=int(step(albedo.r*.5,uEdge1));int edge2=int(step(albedo.r*.5,uEdge2));int colIdx=edge0+edge1+edge2;fragColor=uPalette[colIdx];}"; // eslint-disable-line
 
 	var ColorRestrictionPass = /** @class */ (function (_super) {
 	    __extends(ColorRestrictionPass, _super);
@@ -50705,7 +50358,15 @@ version: 1.0.0
 	        _this.camera = new PerspectiveCamera();
 	        _this.target = null;
 	        _this.plane = new FullscreenPlane({
-	            uPalette: new Uniform(PaletteTexture.get(SUPER_GAMEBOY)),
+	            uEdge0: new Uniform(0),
+	            uEdge1: new Uniform(0),
+	            uEdge2: new Uniform(0),
+	            uPalette: new Uniform([
+	                new Vector4(),
+	                new Vector4(),
+	                new Vector4(),
+	                new Vector4(),
+	            ])
 	        }, defaultVS, colorRestrictionFS);
 	        _this.scene.add(_this.plane.mesh);
 	        return _this;
@@ -50721,6 +50382,13 @@ version: 1.0.0
 	        this.densityDissipation = 0.93;
 	        this.velocityDissipation = 0.98;
 	        this.pressureDissipation = 0.8;
+	        this.edge0 = 0.125;
+	        this.edge1 = 0.75;
+	        this.edge2 = 4.5;
+	        this.color0 = "#f7e7c6";
+	        this.color1 = "#d68e49";
+	        this.color2 = "#a63725";
+	        this.color3 = "#331e50";
 	        this._inputs = [];
 	        this._simRes = 128;
 	        this._dyeRes = 512;
@@ -50748,7 +50416,7 @@ version: 1.0.0
 	            _this._inputs.reverse().forEach(function (input) {
 	                splatPass.target = velocity.writeTarget;
 	                splatPass.plane.updateUniforms({
-	                    uTex: velocity.readTarget,
+	                    uTex: velocity.readTarget.texture,
 	                    uAspect: renderer.aspect,
 	                    uPoint: new Vector2(input.x, input.y),
 	                    uCol: new Vector3(input.z, input.w, 1),
@@ -50757,7 +50425,7 @@ version: 1.0.0
 	                renderer.renderSinglePass(splatPass);
 	                splatPass.target = density.writeTarget;
 	                splatPass.plane.updateUniforms({
-	                    uTex: density.readTarget,
+	                    uTex: density.readTarget.texture,
 	                    uCol: new Vector3().setScalar(10),
 	                });
 	                renderer.renderSinglePass(splatPass);
@@ -50774,7 +50442,24 @@ version: 1.0.0
 	            var height = window.innerHeight;
 	            _this._renderer.resize(width, height);
 	            _this._pixelated.resize(width / 8, height / 8);
-	            // this._pixelated.resize(width, height);
+	        };
+	        this._updatePalette = function () {
+	            var palette = [
+	                new Color(_this.color0),
+	                new Color(_this.color1),
+	                new Color(_this.color2),
+	                new Color(_this.color3),
+	            ].map(function (col) {
+	                var vec4 = new Vector4().fromArray(col.toArray());
+	                vec4.w = 1;
+	                return vec4;
+	            });
+	            _this._colorResPass.plane.updateUniforms({
+	                uEdge0: _this.edge0,
+	                uEdge1: _this.edge1,
+	                uEdge2: _this.edge2,
+	                uPalette: palette,
+	            });
 	        };
 	        var canvasBox = document.querySelector("#app");
 	        this._clock = new Clock(true);
@@ -50783,6 +50468,7 @@ version: 1.0.0
 	        this._onResize();
 	        this._composePass();
 	        this._setupControls();
+	        this._updatePalette();
 	        window.addEventListener("mousemove", this._onMouseMove);
 	        window.addEventListener("resize", this._onResize);
 	        requestAnimationFrame(this._render);
@@ -50960,29 +50646,22 @@ version: 1.0.0
 	        renderer.addPass(copyPass);
 	    };
 	    App.prototype._setupControls = function () {
-	        var _this = this;
 	        // @ts-ignore
 	        var gui = new dat.GUI();
-	        var color = { palette: "SUPER_GAMEBOY" };
-	        var palettes = [
-	            "SWEETIE16",
-	            "ENDESGA16",
-	            "ICE_CREAM_GB",
-	            "INDECISION",
-	            "ISLAND_JOY_16",
-	            "NES",
-	            "SUPER_GAMEBOY"
-	        ];
 	        gui.add(this, "curlStrength", 0, 100);
 	        gui.add(this, "radius", -5, 0);
 	        gui.add(this, "densityDissipation", 0, 1);
 	        gui.add(this, "velocityDissipation", 0, 1);
 	        gui.add(this, "pressureDissipation", 0, 1);
-	        gui.add(color, "palette", palettes).onChange(function () {
-	            _this._colorResPass.plane.updateUniforms({
-	                uPalette: PaletteTexture.get(COLORS[color.palette]),
-	            });
-	        });
+	        var f1 = gui.addFolder("color");
+	        f1.add(this, "edge0", 0, 5).onChange(this._updatePalette);
+	        f1.add(this, "edge1", 0, 5).onChange(this._updatePalette);
+	        f1.add(this, "edge2", 0, 5).onChange(this._updatePalette);
+	        f1.addColor(this, "color0").onChange(this._updatePalette);
+	        f1.addColor(this, "color1").onChange(this._updatePalette);
+	        f1.addColor(this, "color2").onChange(this._updatePalette);
+	        f1.addColor(this, "color3").onChange(this._updatePalette);
+	        f1.open();
 	    };
 	    return App;
 	}());
