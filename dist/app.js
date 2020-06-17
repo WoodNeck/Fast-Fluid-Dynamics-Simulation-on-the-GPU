@@ -50394,15 +50394,14 @@ version: 1.0.0
 	        this._dyeRes = 512;
 	        this._pressureIterations = 3;
 	        this._onMouseMove = function (e) {
-	            var x = e.pageX;
-	            var y = e.pageY;
-	            if (!_this._lastPos) {
-	                _this._lastPos = new Vector2(x, y);
-	                return;
-	            }
-	            var size = _this._renderer.size;
-	            _this._inputs.push(new Vector4(x / size.x, 1 - y / size.y, 5 * (x - _this._lastPos.x), -5 * (y - _this._lastPos.y)));
-	            _this._lastPos.set(x, y);
+	            var x = e.clientX;
+	            var y = e.clientY;
+	            _this._processInput(x, y);
+	        };
+	        this._onTouchMove = function (e) {
+	            var x = e.touches[0].clientX;
+	            var y = e.touches[0].clientY;
+	            _this._processInput(x, y);
 	        };
 	        this._render = function () {
 	            var renderer = _this._renderer;
@@ -50470,6 +50469,7 @@ version: 1.0.0
 	        this._setupControls();
 	        this._updatePalette();
 	        window.addEventListener("mousemove", this._onMouseMove);
+	        window.addEventListener("touchmove", this._onTouchMove);
 	        window.addEventListener("resize", this._onResize);
 	        requestAnimationFrame(this._render);
 	    }
@@ -50644,6 +50644,15 @@ version: 1.0.0
 	        renderer.addPass(pixelatePass);
 	        renderer.addPass(colorResPass);
 	        renderer.addPass(copyPass);
+	    };
+	    App.prototype._processInput = function (x, y) {
+	        if (!this._lastPos) {
+	            this._lastPos = new Vector2(x, y);
+	            return;
+	        }
+	        var size = this._renderer.size;
+	        this._inputs.push(new Vector4(x / size.x, 1 - y / size.y, 5 * (x - this._lastPos.x), -5 * (y - this._lastPos.y)));
+	        this._lastPos.set(x, y);
 	    };
 	    App.prototype._setupControls = function () {
 	        // @ts-ignore
